@@ -1,0 +1,16 @@
+[info] logger.cpp:53: Logger initialized (level=INFO)
+[info] main.cpp:7: ComputeEngine Testbed v1.0.0
+[info] main.cpp:10: Shape: [2, 3], ndim=2, elements=6
+[info] main.cpp:13: DType: float32, size=4 bytes
+[info] main.cpp:16: Status: OK, ok=true
+[info] tensor.cpp:45: Tensor created shape=[2, 3] dtype=float32
+[info] main.cpp:19: Tensor: Tensor([2, 3], float32), contiguous=true
+[info] tensor.cpp:45: Tensor created shape=[4, 4] dtype=float32
+[info] tensor.cpp:45: Tensor created shape=[4, 4] dtype=float32
+[info] main.cpp:23: Zeros tensor: Tensor([4, 4], float32)
+[info] main.cpp:24: Ones tensor: Tensor([4, 4], float32)
+[info] backend_registry.cpp:8: BackendRegistry initialized
+[warning] backend_registry.cpp:38: No available backend for type=CPU
+[info] main.cpp:32: Backward-compatible CE_LOG_INFO macro works
+[info] main.cpp:34: All basic tests passed!
+[info] logger.cpp:58: Logger shutting down
