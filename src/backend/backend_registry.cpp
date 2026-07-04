@@ -1,7 +1,47 @@
 #include "compute_engine/backend/backend_registry.h"
+#include "compute_engine/backend/cpu_backend.h"
 #include "compute_engine/platform/logger.h"
 
+#ifdef CE_HAS_CUDA
+#include "compute_engine/backend/cuda_backend.h"
+#endif
+#ifdef CE_HAS_OPENCL
+#include "compute_engine/backend/opencl_backend.h"
+#endif
+#ifdef CE_HAS_VULKAN
+#include "compute_engine/backend/vulkan_backend.h"
+#endif
+
 namespace compute_engine {
+
+void BackendRegistry::InitBuiltinBackends() {
+    static bool initialized = false;
+    if (initialized) return;
+    initialized = true;
+
+    auto& reg = Instance();
+    reg.Register(DeviceType::CPU,
+                 []() -> BackendPtr { return std::make_shared<CPUBackend>(); },
+                 100);
+
+#ifdef CE_HAS_CUDA
+    reg.Register(DeviceType::CUDA,
+                 []() -> BackendPtr { return std::make_shared<CUDABackend>(); },
+                 200);
+#endif
+
+#ifdef CE_HAS_OPENCL
+    reg.Register(DeviceType::OPENCL,
+                 []() -> BackendPtr { return std::make_shared<OpenCLBackend>(); },
+                 150);
+#endif
+
+#ifdef CE_HAS_VULKAN
+    reg.Register(DeviceType::VULKAN,
+                 []() -> BackendPtr { return std::make_shared<VulkanBackend>(); },
+                 150);
+#endif
+}
 
 BackendRegistry& BackendRegistry::Instance() {
     static BackendRegistry instance;

@@ -4,6 +4,7 @@ int main(int argc, char** argv) {
     using namespace compute_engine;
 
     LogManager::Init("compute_engine.log", LogLevel::INFO, true);
+    BackendRegistry::InitBuiltinBackends();
     LOGI("ComputeEngine Testbed v1.0.0");
 
     Shape s({2, 3});
@@ -23,10 +24,36 @@ int main(int argc, char** argv) {
     LOGI("Zeros tensor: {}", zeros.ToString());
     LOGI("Ones tensor: {}", ones.ToString());
 
-    auto backend = BackendRegistry::Instance().GetBestAvailable({DeviceType::CPU});
-    if (backend) {
-        LOGI("Backend: {}, available={}",
-             backend->device()->name(), backend->IsAvailable());
+    auto cpu = BackendRegistry::Instance().GetBestAvailable({DeviceType::CPU});
+    if (cpu) {
+        LOGI("CPU Backend: {}, available={}", cpu->device()->name(), cpu->IsAvailable());
+    }
+
+    auto cuda = BackendRegistry::Instance().GetBestAvailable({DeviceType::CUDA});
+    if (cuda) {
+        cuda->Initialize();
+        LOGI("CUDA Backend: {}, available={}, memory={} MB",
+             cuda->device()->name(), cuda->IsAvailable(),
+             cuda->device()->GetMaxMemory() / (1024 * 1024));
+        cuda->Finalize();
+    }
+
+    auto vulkan = BackendRegistry::Instance().GetBestAvailable({DeviceType::VULKAN});
+    if (vulkan) {
+        vulkan->Initialize();
+        LOGI("Vulkan Backend: {}, available={}, memory={} MB",
+             vulkan->device()->name(), vulkan->IsAvailable(),
+             vulkan->device()->GetMaxMemory() / (1024 * 1024));
+        vulkan->Finalize();
+    }
+
+    auto opencl = BackendRegistry::Instance().GetBestAvailable({DeviceType::OPENCL});
+    if (opencl) {
+        opencl->Initialize();
+        LOGI("OpenCL Backend: {}, available={}, memory={} MB",
+             opencl->device()->name(), opencl->IsAvailable(),
+             opencl->device()->GetMaxMemory() / (1024 * 1024));
+        opencl->Finalize();
     }
 
     CE_LOG_INFO("Backward-compatible CE_LOG_INFO macro works");

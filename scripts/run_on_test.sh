@@ -39,9 +39,9 @@ fi
 
 echo "=== Configuring CMake ==="
 cmake -S "$PROJECT_ROOT" -B "$BUILD_DIR" \
-    -DCE_BUILD_CUDA=OFF \
-    -DCE_BUILD_OPENCL=OFF \
-    -DCE_BUILD_VULKAN=OFF \
+    -DCE_BUILD_CUDA=ON \
+    -DCE_BUILD_OPENCL=ON \
+    -DCE_BUILD_VULKAN=ON \
     -DCE_BUILD_TESTBED=ON \
     -DCE_BUILD_SHARED=OFF
 

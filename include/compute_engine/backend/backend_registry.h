@@ -28,6 +28,8 @@ public:
 
     void SetPriorityList(const std::vector<DeviceType>& ordered);
 
+    static void InitBuiltinBackends();
+
 private:
     BackendRegistry() = default;
 

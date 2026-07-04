@@ -1,16 +1,38 @@
 [info] logger.cpp:53: Logger initialized (level=INFO)
-[info] main.cpp:7: ComputeEngine Testbed v1.0.0
-[info] main.cpp:10: Shape: [2, 3], ndim=2, elements=6
-[info] main.cpp:13: DType: float32, size=4 bytes
-[info] main.cpp:16: Status: OK, ok=true
+[info] backend_registry.cpp:48: BackendRegistry initialized
+[info] backend_registry.cpp:64: Backend registered: type=CPU priority=100
+[info] backend_registry.cpp:64: Backend registered: type=CUDA priority=200
+[info] backend_registry.cpp:64: Backend registered: type=OpenCL priority=150
+[info] backend_registry.cpp:64: Backend registered: type=Vulkan priority=150
+[info] main.cpp:8: ComputeEngine Testbed v1.0.0
+[info] main.cpp:11: Shape: [2, 3], ndim=2, elements=6
+[info] main.cpp:14: DType: float32, size=4 bytes
+[info] main.cpp:17: Status: OK, ok=true
 [info] tensor.cpp:45: Tensor created shape=[2, 3] dtype=float32
-[info] main.cpp:19: Tensor: Tensor([2, 3], float32), contiguous=true
+[info] main.cpp:20: Tensor: Tensor([2, 3], float32), contiguous=true
 [info] tensor.cpp:45: Tensor created shape=[4, 4] dtype=float32
 [info] tensor.cpp:45: Tensor created shape=[4, 4] dtype=float32
-[info] main.cpp:23: Zeros tensor: Tensor([4, 4], float32)
-[info] main.cpp:24: Ones tensor: Tensor([4, 4], float32)
-[info] backend_registry.cpp:8: BackendRegistry initialized
-[warning] backend_registry.cpp:38: No available backend for type=CPU
-[info] main.cpp:32: Backward-compatible CE_LOG_INFO macro works
-[info] main.cpp:34: All basic tests passed!
+[info] main.cpp:24: Zeros tensor: Tensor([4, 4], float32)
+[info] main.cpp:25: Ones tensor: Tensor([4, 4], float32)
+[info] backend_registry.cpp:48: BackendRegistry initialized
+[info] cpu_backend.cpp:62: CPUBackend created
+[info] backend_registry.cpp:73: Backend found for type=CPU
+[info] main.cpp:29: CPU Backend: CPU, available=true
+[info] backend_registry.cpp:48: BackendRegistry initialized
+[info] backend_registry.cpp:73: Backend found for type=CUDA
+[info] main.cpp:35: CUDA Backend: NVIDIA GeForce RTX 3050, available=true, memory=7837 MB
+[info] backend_registry.cpp:48: BackendRegistry initialized
+[info] vulkan_backend.cpp:132: VulkanBackend created
+[info] backend_registry.cpp:73: Backend found for type=Vulkan
+[info] vk_context.cpp:154: Vulkan context initialized: device=NVIDIA GeForce RTX 3050 mem=8192 MB api=1.4.341
+[info] main.cpp:44: Vulkan Backend: NVIDIA GeForce RTX 3050, available=true, memory=8192 MB
+[info] vk_context.cpp:172: Vulkan context destroyed
+[info] backend_registry.cpp:48: BackendRegistry initialized
+[info] opencl_backend.cpp:108: OpenCLBackend created
+[info] backend_registry.cpp:73: Backend found for type=OpenCL
+[info] cl_context.cpp:102: OpenCL context initialized: platform=NVIDIA CUDA device=NVIDIA GeForce RTX 3050 mem=7837 MB units=20
+[info] main.cpp:53: OpenCL Backend: NVIDIA GeForce RTX 3050, available=true, memory=7837 MB
+[info] cl_context.cpp:117: OpenCL context destroyed
+[info] main.cpp:59: Backward-compatible CE_LOG_INFO macro works
+[info] main.cpp:61: All basic tests passed!
 [info] logger.cpp:58: Logger shutting down
