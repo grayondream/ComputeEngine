@@ -52,15 +52,15 @@ Core+CPU+Ref     Graph+Runtime    CUDA Backend     OpenCL+Vulkan    LLM Engine  
 | **1.5** Backend 接口 + Registry | `backend.h` (4 子接口), `backend_registry.h/.cpp`, `REGISTER_BACKEND` 宏 | ✅ 已完成 | 100% | 1.2 | 4 天 |
 | **1.6** CPU Backend 框架 | `cpu_backend.h/.cpp`, `cpu_context.h`, `dispatch.h/.cpp` (cpuid 检测) | ✅ 已完成 | 100% | 1.5 | 3 天 |
 | **1.7** CPU MatMul Kernel | `matmul_scalar.cpp` → `matmul_avx.cpp` → `matmul_neon.cpp` | ✅ 已完成 | 100% | 1.6 | 5 天 |
-| **1.8** CPU Conv2D Kernel | `conv_scalar.cpp`, `conv_avx.cpp`, `conv_neon.cpp` (im2col+GEMM, Winograd) | ✅ 已完成 | 50% | 1.7 | 5 天 |
-| **1.9** CPU Norm Kernel | `norm_scalar.cpp`, `norm_avx.cpp`, `norm_neon.cpp` (LayerNorm, RMSNorm, BatchNorm) | ✅ 已完成 | 70% | 1.7 | 3 天 |
-| **1.10** CPU Activation Kernel | `activation_scalar.cpp`, `activation_avx.cpp`, `activation_neon.cpp` | ✅ 已完成 | 80% | 1.7 | 3 天 |
-| **1.11** CPU Attention Kernel | `attention_avx.cpp`, `attention_neon.cpp` (SDPA, causal, GQA/MQA) | ⬜ 待实现 | 0% | 1.7 | 4 天 |
+| **1.8** CPU Conv2D Kernel | `conv_scalar.cpp`, `conv_avx.cpp`, `conv_neon.cpp` (im2col+GEMM, Winograd) | ✅ 已完成 | 70% | 1.7 | 5 天 |
+| **1.9** CPU Norm Kernel | `norm_scalar.cpp`, `norm_avx.cpp`, `norm_neon.cpp` (LayerNorm, RMSNorm, BatchNorm) | ✅ 已完成 | 90% | 1.7 | 3 天 |
+| **1.10** CPU Activation Kernel | `activation_scalar.cpp`, `activation_avx.cpp`, `activation_neon.cpp` | ✅ 已完成 | 90% | 1.7 | 3 天 |
+| **1.11** CPU Attention Kernel | `attention_scalar.cpp`, `attention_avx.cpp` (SDPA, causal, GQA/MQA) | ✅ 已完成 | 70% | 1.7 | 4 天 |
 | **1.12** Op 系统 | `op.h`, `op_registry.h/.cpp` (OpSchema + KernelRegistry) | ✅ 已完成 | 100% | 1.5 | 3 天 |
 | **1.13** Reference Ops | `ref_ops.h/.cpp` (MatMul, Conv, Norm, Activation, Attention, RoPE) | ✅ 已完成 | 100% | 1.12 | 5 天 |
 | **1.14** Memory 模块 | `allocator.h/.cpp`, `memory_pool.h/.cpp`, `unified_memory.h/.cpp` | ✅ 已完成 | 100% | 1.5 | 4 天 |
 | **1.15** Resource Tracing v1 | `resource_tracer.h/.cpp`, `TracingAllocator` | ✅ 已完成 | 100% | 1.14 | 2 天 |
-| **1.16** Testbed + 单元测试 | `test_runner.h`, `test_core.cpp`, `test_tensor.cpp`, `test_backend*.cpp`, `test_ops.cpp`, `test_memory.cpp`, `test_resource_tracer.cpp`, `test_platform.cpp` | ✅ 设计完成 | 0% | 1.13 | 6 天 |
+| **1.16** Testbed + 单元测试 | `test_runner.h`, `test_core.cpp`, `test_tensor.cpp`, `test_backend*.cpp`, `test_ops.cpp`, `test_memory.cpp`, `test_resource_tracer.cpp`, `test_platform.cpp` | ✅ 已完成 | 40% | 1.13 | 6 天 |
 
 **Phase 1 里程碑**: `./testbed --unit --backend cpu` 全部通过, CPU 后端与 Reference 数值一致 (atol≤1e-5)
 **预计完成**: W8
@@ -210,12 +210,30 @@ Core+CPU+Ref     Graph+Runtime    CUDA Backend     OpenCL+Vulkan    LLM Engine  
 
 ---
 
-## 近期任务 (Next Steps — Phase 1 前 5 个子阶段)
+## 近期任务 (Next Steps — Phase 1 剩余子阶段)
 
 1. [x] **1.1** CMake 构建系统搭建 (3 天)
 2. [x] **1.2** Core 基础类型实现 — Status, DType, Shape, half, DeviceType (5 天)
 3. [x] **1.3** Tensor Storage 模型实现 — stride-based 零拷贝 View/Slice/Reshape (5 天)
 4. [x] **1.4** Platform 基础设施 — Logger, Timer, ThreadPool, Profiler (4 天)
 5. [x] **1.5** Backend 接口 + BackendRegistry — 4 子接口 + 注册宏 (4 天)
-6. [ ] **1.7** CPU MatMul Kernel — scalar + AVX + NEON tiled (5 天)
-7. [ ] **1.12** Op 系统 — OpSchema + KernelRegistry (3 天)
+6. [x] **1.6** CPU Backend 框架 — CPUDevice/Allocator/Stream/Executor (3 天)
+7. [x] **1.7** CPU MatMul Kernel — scalar + AVX + AVX512 + NEON tiled (5 天)
+8. [x] **1.8** CPU Conv2D Kernel — scalar + AVX2 im2col+GEMM (Winograd 待实现)
+9. [x] **1.9** CPU Norm Kernel — scalar + AVX + NEON (LayerNorm/RMSNorm/BatchNorm/SoftMax)
+10. [x] **1.10** CPU Activation Kernel — scalar + AVX + NEON (ReLU/GELU/SiLU/Sigmoid/Tanh/SwiGLU)
+11. [x] **1.11** CPU Attention Kernel — scalar + AVX2 SDPA + Causal (GQA/MQA 待实现)
+12. [x] **1.12** Op 系统 — OpSchema + KernelRegistry
+13. [x] **1.13** Reference Ops — MatMul/Conv/Norm/Activation/Attention/RoPE
+14. [x] **1.14** Memory 模块 — Allocator/MemoryPool/UnifiedMemory
+15. [x] **1.15** Resource Tracing v1 — TrackAlloc/TrackFree/DumpLeaks
+16. [x] **1.16** Testbed + 单元测试 — 47 个测试全部通过
+
+## Phase 1 待完善项
+
+- [ ] Conv2D Winograd 变体
+- [ ] Attention GQA/MQA 支持
+- [ ] Attention NEON 变体
+- [ ] Conv2D NEON 变体
+- [ ] 更完整的 Kernel Dispatch (根据 CPUID 动态选择最优 kernel)
+- [ ] Benchmark 测试 (MatMul/Conv/Attention 性能基准)

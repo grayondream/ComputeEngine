@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(ComputeEngine VERSION 1.0.0 LANGUAGES CXX CUDA)
+project(ComputeEngine VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -36,6 +36,17 @@ option(CE_BUILD_SHARED   "Build shared library"     ON)
 option(CE_ENABLE_PROFILING "Enable Profiler"        ON)
 option(CE_ENABLE_LOGGING  "Enable Logger"           ON)
 option(CE_DEBUG_TRACE    "Enable resource tracing"  OFF)
+
+if(CE_BUILD_CUDA)
+    include(CheckLanguage)
+    check_language(CUDA)
+    if(CMAKE_CUDA_COMPILER)
+        enable_language(CUDA)
+    else()
+        message(WARNING "CE: No CUDA compiler found, disabling CUDA backend")
+        set(CE_BUILD_CUDA OFF)
+    endif()
+endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
@@ -102,10 +113,15 @@ set(CE_CPU_BACKEND_SOURCES
     src/backend/cpu/kernels/matmul/matmul_avx512.cpp
     src/backend/cpu/kernels/matmul/matmul_neon.cpp
     src/backend/cpu/kernels/conv/conv_scalar.cpp
+    src/backend/cpu/kernels/conv/conv_avx.cpp
     src/backend/cpu/kernels/norm/norm_scalar.cpp
     src/backend/cpu/kernels/norm/norm_avx.cpp
+    src/backend/cpu/kernels/norm/norm_neon.cpp
     src/backend/cpu/kernels/activation/activation_scalar.cpp
     src/backend/cpu/kernels/activation/activation_avx.cpp
+    src/backend/cpu/kernels/activation/activation_neon.cpp
+    src/backend/cpu/kernels/attention/attention_scalar.cpp
+    src/backend/cpu/kernels/attention/attention_avx.cpp
 )
 
 set(CE_CUDA_BACKEND_SOURCES
