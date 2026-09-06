@@ -281,6 +281,139 @@ void TestResourceTracer() {
     CHECK(tracer.NumLive() == 0, "No live resources after free");
 }
 
+// ─── Test Dispatch ───
+void TestDispatch() {
+    printf("\n=== Dispatch ===\n");
+    const auto& caps = GetCPUCaps();
+    printf("  CPU caps: AVX2=%d AVX512=%d\n", caps.avx2, caps.avx512f);
+
+    std::vector<float> A(16), B(16), C(16, 0.0f);
+    for (int i = 0; i < 16; ++i) { A[i] = (float)(i+1); B[i] = 1.0f; }
+
+    cpu::MatMulDispatch(A.data(), B.data(), C.data(), 4, 4, 4);
+    CHECK(C[0] > 0.0f, "MatMulDispatch produced output");
+
+    std::vector<float> input = {-2.0f, -1.0f, 0.0f, 1.0f, 2.0f};
+    std::vector<float> output(5);
+    cpu::ReLUDispatch(input.data(), output.data(), 5);
+    CHECK(NearEqual(output[0], 0.0f), "ReLUDispatch(-2)=0");
+    CHECK(NearEqual(output[4], 2.0f), "ReLUDispatch(2)=2");
+}
+
+// ─── Test Graph IR ───
+void TestGraphIR() {
+    printf("\n=== Graph IR ===\n");
+
+    graph::GraphDef g("test_graph");
+    g.AddInput("x", {2, 3});
+    g.AddInput("w", {3, 4});
+    g.AddInput("b", {1, 4});
+
+    auto* matmul = g.AddNode("matmul_0", OpType::MATMUL);
+    matmul->inputs = {"x", "w"};
+    matmul->outputs = {"matmul_out"};
+
+    auto* add = g.AddNode("add_0", OpType::ADD);
+    add->inputs = {"matmul_out", "b"};
+    add->outputs = {"add_out"};
+
+    g.AddOutput("add_out");
+
+    CHECK(g.num_nodes() == 2, "Graph has 2 nodes");
+    CHECK(g.inputs().size() == 3, "Graph has 3 inputs");
+    CHECK(g.outputs().size() == 1, "Graph has 1 output");
+
+    auto* node = g.GetNode("matmul_0");
+    CHECK(node != nullptr, "GetNode matmul_0");
+    CHECK(node->op_type == OpType::MATMUL, "matmul_0 is MATMUL");
+
+    std::vector<graph::NodeDef*> sorted;
+    auto st = g.TopologicalSort(sorted);
+    CHECK(st.ok(), "TopologicalSort succeeds");
+    CHECK(sorted.size() == 2, "Sorted has 2 nodes");
+    CHECK(sorted[0]->name == "matmul_0" || sorted[0]->name == "add_0", "First node is valid");
+    CHECK(sorted[1]->name == "matmul_0" || sorted[1]->name == "add_0", "Second node is valid");
+    CHECK(sorted[0]->name != sorted[1]->name, "Nodes are distinct");
+    // Verify topological order: matmul_0 must come before add_0
+    int matmul_idx = -1, add_idx = -1;
+    for (size_t i = 0; i < sorted.size(); ++i) {
+        if (sorted[i]->name == "matmul_0") matmul_idx = i;
+        if (sorted[i]->name == "add_0") add_idx = i;
+    }
+    CHECK(matmul_idx < add_idx, "Topological order: matmul before add");
+
+    st = g.Validate();
+    CHECK(st.ok(), "Graph validates");
+
+    std::string dot = g.ToDot();
+    CHECK(dot.find("digraph") != std::string::npos, "ToDot produces dot format");
+
+    std::string str = g.ToString();
+    CHECK(str.find("test_graph") != std::string::npos, "ToString includes graph name");
+}
+
+// ─── Test Graph Optimizer ───
+void TestGraphOptimizer() {
+    printf("\n=== Graph Optimizer ===\n");
+
+    graph::GraphDef g("opt_test");
+    g.AddInput("x", {2, 3});
+    g.AddInput("w", {3, 4});
+    g.AddInput("b", {1, 4});
+
+    auto* matmul = g.AddNode("matmul_0", OpType::MATMUL);
+    matmul->inputs = {"x", "w"};
+    matmul->outputs = {"matmul_out"};
+
+    auto* relu = g.AddNode("relu_0", OpType::RELU);
+    relu->inputs = {"unused_tensor"};
+    relu->outputs = {"unused_out"};
+
+    auto* add = g.AddNode("add_0", OpType::ADD);
+    add->inputs = {"matmul_out", "b"};
+    add->outputs = {"output"};
+
+    g.AddOutput("output");
+
+    size_t before = g.num_nodes();
+    auto opt = graph::GraphOptimizer::Default();
+    auto st = opt.Optimize(g);
+    CHECK(st.ok(), "Optimization succeeds");
+
+    CHECK(g.num_nodes() < before, "Optimizer reduced node count");
+}
+
+// ─── Test ExecutionPlan ───
+void TestExecutionPlan() {
+    printf("\n=== ExecutionPlan ===\n");
+
+    graph::GraphDef g("plan_test");
+    g.AddInput("x", {2, 3});
+    g.AddInput("w", {3, 4});
+
+    auto* matmul = g.AddNode("matmul_0", OpType::MATMUL);
+    matmul->inputs = {"x", "w"};
+    matmul->outputs = {"y"};
+
+    auto* relu = g.AddNode("relu_0", OpType::RELU);
+    relu->inputs = {"y"};
+    relu->outputs = {"out"};
+
+    g.AddOutput("out");
+
+    runtime::GraphExecutor executor;
+    auto st = executor.Compile(g);
+    CHECK(st.ok(), "GraphExecutor::Compile succeeds");
+
+    auto* plan = executor.plan();
+    CHECK(plan != nullptr, "Plan exists");
+    CHECK(plan->num_nodes() == 2, "Plan has 2 nodes");
+
+    std::unordered_map<std::string, TensorPtr> inputs, outputs;
+    st = executor.Execute(inputs, outputs);
+    CHECK(st.ok(), "GraphExecutor::Execute succeeds");
+}
+
 int main() {
     printf("ComputeEngine Unit Tests\n");
     printf("========================\n");
@@ -293,6 +426,7 @@ int main() {
     TestMemory();
     TestResourceTracer();
     TestBackendAPI();
+    TestDispatch();
     TestMatMulScalar();
     TestLayerNormScalar();
     TestRMSNormScalar();
@@ -302,6 +436,9 @@ int main() {
     TestSoftmax();
     TestConv2D();
     TestAttention();
+    TestGraphIR();
+    TestGraphOptimizer();
+    TestExecutionPlan();
 
     printf("\n========================\n");
     printf("Results: %d passed, %d failed\n", tests_passed, tests_failed);
