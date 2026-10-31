@@ -23,7 +23,7 @@
 - [x] `src/core/runtime`:ExecutionContext/Executor/Engine、CpuBackend
 - [x] `src/core/plugin`、`src/core/tuning`、RNG 骨架
 - [x] `src/demo/main.cpp`:`(a+b)*3` 输出 15,21,27
-- [x] 验证:Debug/Release 各 39/39 ctest 通过
+- [x] 验证:Debug/Release 各 49/49 ctest 通过
 - [x] 回写 `p0-mvp.md` §8 与 `decisions-log.md` 的实现期裁定
 
 ## 后续

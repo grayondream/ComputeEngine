@@ -10,9 +10,24 @@ int64_t Shape::numel() const {
     }
     int64_t total = 1;
     for (int64_t dim : dims) {
+        if (dim <= 0) {
+            return 0;
+        }
         total *= dim;
     }
     return total;
+}
+
+bool Shape::is_concrete() const {
+    if (dims.empty()) {
+        return false;
+    }
+    for (int64_t dim : dims) {
+        if (dim <= 0) {
+            return false;
+        }
+    }
+    return true;
 }
 
 int64_t Shape::stride(int dim) const {

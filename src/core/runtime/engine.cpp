@@ -11,7 +11,8 @@
 namespace ie {
 
 Engine::Engine(EngineConfig config)
-    : config_(std::move(config)), allocator_(std::make_unique<MallocAllocator>()) {
+    : config_(std::move(config)),
+      allocator_(std::make_shared<MallocAllocator>()) {
     Status valid = validate(config_);
     if (!valid.has_value()) {
         error_ = valid.error();
@@ -26,6 +27,10 @@ Engine::Engine(EngineConfig config)
     auto backend = registry.create(BackendKind::CPU);
     if (!backend.has_value()) {
         error_ = backend.error();
+        return;
+    }
+    if (!backend.value()) {
+        error_ = Error::runtime("cpu backend factory returned null");
         return;
     }
     backend_ = std::move(*backend);
@@ -68,7 +73,7 @@ Result<std::vector<Tensor>> Engine::infer(
     }
 
     ExecutionContext context;
-    context.allocator = allocator_.get();
+    context.allocator = allocator_;
     context.inputs = inputs;
 
     BatchPlan plan;

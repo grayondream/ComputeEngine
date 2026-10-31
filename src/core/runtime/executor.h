@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -22,7 +23,7 @@ public:
     Result<std::vector<Tensor>> run(
         const Graph& graph,
         const std::unordered_map<std::string, Tensor>& inputs,
-        Allocator& allocator);
+        std::shared_ptr<Allocator> allocator);
 
 private:
     OpRegistry& registry_;

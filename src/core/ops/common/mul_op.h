@@ -11,7 +11,8 @@ public:
     Status configure(const Attrs& attrs) override {
         auto it = attrs.find("scalar");
         if (it == attrs.end()) {
-            return Error::invalid_argument("Mul requires a scalar attr");
+            has_scalar_ = false;
+            return {};
         }
         if (const auto* value = std::get_if<double>(&it->second)) {
             scalar_ = *value;
@@ -30,15 +31,18 @@ public:
         if (outputs.empty()) {
             return Error::invalid_argument("Mul expects one output");
         }
-        if (context.allocator == nullptr) {
+        if (!context.allocator) {
             return Error::invalid_argument("Mul requires an allocator");
+        }
+        if (auto valid = validate_p0_kernel_inputs(inputs); !valid.has_value()) {
+            return valid.error();
         }
         if (inputs.size() == 2) {
             if (inputs[0]->shape != inputs[1]->shape) {
                 return Error::invalid_argument("Mul shape mismatch");
             }
             auto result = Tensor::allocate(inputs[0]->shape, inputs[0]->dtype,
-                                           *context.allocator);
+                                           context.allocator);
             if (!result.has_value()) {
                 return result.error();
             }
@@ -54,7 +58,7 @@ public:
         }
         if (inputs.size() == 1 && has_scalar_) {
             auto result = Tensor::allocate(inputs[0]->shape, inputs[0]->dtype,
-                                           *context.allocator);
+                                           context.allocator);
             if (!result.has_value()) {
                 return result.error();
             }

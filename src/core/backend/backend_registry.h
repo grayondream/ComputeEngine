@@ -21,6 +21,9 @@ public:
     }
 
     Status register_backend(BackendKind kind, Factory factory) {
+        if (!factory) {
+            return Error::invalid_argument("empty backend factory");
+        }
         std::lock_guard<std::mutex> lock(mutex_);
         if (factories_.find(kind) != factories_.end()) {
             return Error::already_exists("backend already registered");
@@ -39,7 +42,11 @@ public:
             }
             factory = it->second;
         }
-        return factory();
+        auto instance = factory();
+        if (!instance) {
+            return Error::runtime("backend factory returned null");
+        }
+        return instance;
     }
 
     bool contains(BackendKind kind) const {

@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <memory>
+
 #include "core/memory/malloc_allocator.h"
 #include "core/ops/common/add_op.h"
 #include "core/ops/common/matmul_op.h"
@@ -36,10 +38,17 @@ TEST(OpRegistryTest, DuplicateRegistrationIsRejected) {
     EXPECT_EQ(second.error().code, Error::Code::AlreadyExists);
 }
 
+TEST(OpRegistryTest, EmptyCreatorIsRejected) {
+    auto& reg = OpRegistry::instance();
+    auto st = reg.register_op(OpType::Div, OpRegistry::Creator{});
+    ASSERT_FALSE(st.has_value());
+    EXPECT_EQ(st.error().code, Error::Code::InvalidArgument);
+}
+
 TEST(AddOpTest, AddsElementwiseAndRejectsShapeMismatch) {
-    MallocAllocator alloc;
+    auto alloc = std::make_shared<MallocAllocator>();
     ExecutionContext ctx;
-    ctx.allocator = &alloc;
+    ctx.allocator = alloc;
     AddOp op;
     Tensor a = Tensor::from_data({1, 2, 3});
     Tensor b = Tensor::from_data({4, 5, 6});
@@ -55,10 +64,34 @@ TEST(AddOpTest, AddsElementwiseAndRejectsShapeMismatch) {
               Error::Code::InvalidArgument);
 }
 
-TEST(MulOpTest, ScalarMultiply) {
-    MallocAllocator alloc;
+TEST(AddOpTest, RejectsNonF32AndNullBuffers) {
+    auto alloc = std::make_shared<MallocAllocator>();
     ExecutionContext ctx;
-    ctx.allocator = &alloc;
+    ctx.allocator = alloc;
+    AddOp op;
+
+    Tensor a = Tensor::from_data({1, 2, 3});
+    Tensor b = Tensor::from_data({4, 5, 6});
+    a.dtype = DType::F16;
+    b.dtype = DType::F16;
+    Tensor out;
+    std::vector<Tensor*> in{&a, &b};
+    std::vector<Tensor*> outs{&out};
+    auto status = op.forward(in, outs, ctx);
+    ASSERT_FALSE(status.has_value());
+    EXPECT_EQ(status.error().code, Error::Code::Unsupported);
+
+    Tensor null_buffer;
+    null_buffer.shape = Shape{{3}};
+    std::vector<Tensor*> null_in{&null_buffer, &b};
+    EXPECT_EQ(op.forward(null_in, outs, ctx).error().code,
+              Error::Code::InvalidArgument);
+}
+
+TEST(MulOpTest, ScalarMultiply) {
+    auto alloc = std::make_shared<MallocAllocator>();
+    ExecutionContext ctx;
+    ctx.allocator = alloc;
     MulOp op;
     Attrs attrs{{"scalar", 3.0}};
     ASSERT_TRUE(op.configure(attrs).has_value());
@@ -70,10 +103,42 @@ TEST(MulOpTest, ScalarMultiply) {
     EXPECT_FLOAT_EQ(out.data<float>()[2], 9.0f);
 }
 
-TEST(MatMulOpTest, TwoDimensionalProduct) {
-    MallocAllocator alloc;
+TEST(MulOpTest, TwoInputElementwiseWithoutScalar) {
+    auto alloc = std::make_shared<MallocAllocator>();
     ExecutionContext ctx;
-    ctx.allocator = &alloc;
+    ctx.allocator = alloc;
+    MulOp op;
+    ASSERT_TRUE(op.configure(Attrs{}).has_value());
+    Tensor a = Tensor::from_data({2, 3, 4});
+    Tensor b = Tensor::from_data({5, 6, 7});
+    Tensor out;
+    std::vector<Tensor*> in{&a, &b};
+    std::vector<Tensor*> outs{&out};
+    ASSERT_TRUE(op.forward(in, outs, ctx).has_value());
+    EXPECT_FLOAT_EQ(out.data<float>()[0], 10.0f);
+    EXPECT_FLOAT_EQ(out.data<float>()[2], 28.0f);
+}
+
+TEST(MatMulOpTest, RejectsInnerDimensionMismatch) {
+    auto alloc = std::make_shared<MallocAllocator>();
+    ExecutionContext ctx;
+    ctx.allocator = alloc;
+    MatMulOp op;
+    Tensor a = Tensor::from_data({1, 2, 3, 4});
+    a.shape = Shape{{2, 2}};
+    Tensor b = Tensor::from_data({1, 2, 3, 4, 5, 6});
+    b.shape = Shape{{3, 2}};
+    Tensor out;
+    std::vector<Tensor*> in{&a, &b};
+    std::vector<Tensor*> outs{&out};
+    EXPECT_EQ(op.forward(in, outs, ctx).error().code,
+              Error::Code::InvalidArgument);
+}
+
+TEST(MatMulOpTest, TwoDimensionalProduct) {
+    auto alloc = std::make_shared<MallocAllocator>();
+    ExecutionContext ctx;
+    ctx.allocator = alloc;
     MatMulOp op;
     Tensor a = Tensor::from_data({1, 2, 3, 4});
     a.shape = Shape{{2, 2}};

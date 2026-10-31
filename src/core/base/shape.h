@@ -11,6 +11,10 @@ struct Shape {
 
     int64_t numel() const;
     int64_t stride(int dim) const;
+
+    // True when every dimension is strictly positive, i.e. the shape can be
+    // materialized. Dynamic placeholders (-1) and zero dims are not concrete.
+    bool is_concrete() const;
 };
 
 bool operator==(const Shape& lhs, const Shape& rhs);

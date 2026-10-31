@@ -11,7 +11,7 @@
 | C++ 标准 | **C++20** | 自研 `Status`/`Result<T>`(无 `std::expected`) | ✅ |
 | 构建系统 | CMake + Ninja | `ie_core`/`ie_cpu`/`ie_demo` | ✅ |
 | 依赖管理 | 系统 GoogleTest 1.17 | vcpkg 延后 | ✅ |
-| 测试框架 | GoogleTest | 39 个 ctest 全绿(Debug/Release) | ✅ |
+| 测试框架 | GoogleTest | 49 个 ctest 全绿(Debug/Release) | ✅ |
 | 基准框架 | Google Benchmark(延后 P1) | P0 不做基准 | ✅ |
 | 是否引入 MLIR | 延后 P0.5 复核;P0 手写 IR | 保持分层,便于后续接 Dialect | ✅ |
 | IR 序列化 | JSON(延后) | P0 无 exporter/加载器 | ✅ |

@@ -10,7 +10,10 @@ namespace ie {
 Result<std::vector<Tensor>> Executor::run(
     const Graph& graph,
     const std::unordered_map<std::string, Tensor>& inputs,
-    Allocator& allocator) {
+    std::shared_ptr<Allocator> allocator) {
+    if (!allocator) {
+        return Error::invalid_argument("executor requires an allocator");
+    }
     std::unordered_map<ValueId, Tensor> values;
 
     for (const Value& value : graph.values) {
@@ -24,16 +27,22 @@ Result<std::vector<Tensor>> Executor::run(
         if (it->second.dtype != DType::F32) {
             return Error::invalid_argument("P0 supports F32 inputs only");
         }
+        if (it->second.buffer == nullptr) {
+            return Error::invalid_argument("input has no buffer: " + value.name);
+        }
         values.emplace(value.id, it->second);
     }
 
     ExecutionContext context;
-    context.allocator = &allocator;
+    context.allocator = std::move(allocator);
 
     for (const Node& node : graph.nodes) {
         auto op = registry_.create(node.op);
         if (!op.has_value()) {
             return op.error();
+        }
+        if (!op.value()) {
+            return Error::runtime("op factory returned null");
         }
         Status configured = op.value()->configure(node.attrs);
         if (!configured.has_value()) {

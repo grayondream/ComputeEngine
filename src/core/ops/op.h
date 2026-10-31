@@ -10,6 +10,19 @@
 
 namespace ie {
 
+// Shared guard for the P0 reference kernels: no null tensors/buffers, F32 only.
+inline Status validate_p0_kernel_inputs(const std::vector<Tensor*>& inputs) {
+    for (Tensor* tensor : inputs) {
+        if (tensor == nullptr || tensor->buffer == nullptr) {
+            return Error::invalid_argument("null tensor or buffer");
+        }
+        if (tensor->dtype != DType::F32) {
+            return Error::unsupported("P0 kernels support F32 only");
+        }
+    }
+    return {};
+}
+
 // Op interface (docs/readme.md §3.6). P0 implements forward only.
 class Op {
 public:

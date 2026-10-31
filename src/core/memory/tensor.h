@@ -69,14 +69,20 @@ public:
         return tensor;
     }
 
-    // P0 allocator is malloc-backed; ownership is tracked by the shared_ptr
-    // deleter. A future allocator-aware Tensor will keep the allocator handle.
+    // Allocated tensors keep the producing allocator alive through the shared
+    // owner, so returned outputs may outlive Engine/Backend.
     static Result<Tensor> allocate(const Shape& shape, DType dtype,
-                                   Allocator& allocator,
+                                   std::shared_ptr<Allocator> allocator,
                                    MemoryKind kind = MemoryKind::ACTIVATION) {
+        if (!allocator) {
+            return Error::invalid_argument("Tensor::allocate requires allocator");
+        }
+        if (!shape.is_concrete()) {
+            return Error::invalid_argument("Tensor::allocate requires concrete shape");
+        }
         const std::size_t bytes =
             static_cast<std::size_t>(shape.numel()) * dtype_size(dtype);
-        auto handle = allocator.alloc(bytes, kind);
+        auto handle = allocator->alloc(bytes, kind);
         if (!handle.has_value()) {
             return handle.error();
         }
@@ -86,9 +92,8 @@ public:
         tensor.device = Device::CPU;
         tensor.layout = Layout::ROW_MAJOR;
         tensor.buffer = *handle;
-        tensor.owner_ = std::shared_ptr<void>(*handle, [](void* ptr) {
-            std::free(ptr);
-        });
+        tensor.owner_ = std::shared_ptr<void>(
+            *handle, [allocator](void* ptr) { allocator->free(ptr); });
         return tensor;
     }
 

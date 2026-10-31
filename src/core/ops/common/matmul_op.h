@@ -16,6 +16,9 @@ public:
         if (context.allocator == nullptr) {
             return Error::invalid_argument("MatMul requires an allocator");
         }
+        if (auto valid = validate_p0_kernel_inputs(inputs); !valid.has_value()) {
+            return valid.error();
+        }
         if (inputs[0]->shape.dims.size() != 2 ||
             inputs[1]->shape.dims.size() != 2) {
             return Error::invalid_argument("MatMul supports 2D inputs only");
@@ -28,7 +31,7 @@ public:
             return Error::invalid_argument("MatMul inner dimensions mismatch");
         }
         auto result = Tensor::allocate(Shape{{m, n}}, inputs[0]->dtype,
-                                       *context.allocator);
+                                       context.allocator);
         if (!result.has_value()) {
             return result.error();
         }

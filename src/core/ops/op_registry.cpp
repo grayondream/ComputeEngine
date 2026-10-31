@@ -12,6 +12,9 @@ OpRegistry& OpRegistry::instance() {
 }
 
 Status OpRegistry::register_op(OpType op, Creator creator) {
+    if (!creator) {
+        return Error::invalid_argument("empty op creator");
+    }
     std::lock_guard<std::mutex> lock(mutex_);
     if (creators_.find(op) != creators_.end()) {
         return Error::already_exists("op already registered");
@@ -30,7 +33,11 @@ Result<std::unique_ptr<Op>> OpRegistry::create(OpType op) {
         }
         creator = it->second;
     }
-    return creator();
+    auto instance = creator();
+    if (!instance) {
+        return Error::runtime("op factory returned null");
+    }
+    return instance;
 }
 
 std::vector<OpType> OpRegistry::list_by_kind(ModelKind /*kind*/) const {

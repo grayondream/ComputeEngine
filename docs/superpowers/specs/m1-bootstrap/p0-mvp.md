@@ -110,4 +110,4 @@ infer-engine/
 6. **MLIR**:延后到 P0.5 末复核;P0 的 IR 手写并保持分层,便于后续接 Dialect。
 7. **Google Benchmark / JSON 序列化**:延后(P1 / 需要 exporter 的里程碑)。
 
-**验收结果**:Debug 与 Release 均 39/39 `ctest` 通过;`ie_demo` 输出 `result: 15, 21, 27`;`HardwareDetector::detect_cpu()` 返回含 `fingerprint`、AVX2 等能力位的画像;`BackendRegistry` 可注册并创建 CPU 后端。
+**验收结果**:Debug 与 Release 均 49/49 `ctest` 通过;`ie_demo` 输出 `result: 15, 21, 27`;`HardwareDetector::detect_cpu()` 返回含 `fingerprint`、AVX2 等能力位的画像;`BackendRegistry` 可注册并创建 CPU 后端。

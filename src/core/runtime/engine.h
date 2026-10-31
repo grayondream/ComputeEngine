@@ -27,7 +27,7 @@ private:
     EngineConfig config_;
     std::optional<Error> error_;
     std::optional<Graph> graph_;
-    std::unique_ptr<MallocAllocator> allocator_;
+    std::shared_ptr<MallocAllocator> allocator_;
     std::unique_ptr<Backend> backend_;
     bool loaded_{false};
 };

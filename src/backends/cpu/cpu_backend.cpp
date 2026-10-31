@@ -15,10 +15,10 @@ Status CpuBackend::shutdown() { return {}; }
 Device CpuBackend::device() const { return Device::CPU; }
 
 Result<BufferHandle> CpuBackend::alloc(std::size_t bytes) {
-    return allocator_.alloc(bytes, MemoryKind::HOST);
+    return allocator_->alloc(bytes, MemoryKind::HOST);
 }
 
-void CpuBackend::free(BufferHandle handle) { allocator_.free(handle); }
+void CpuBackend::free(BufferHandle handle) { allocator_->free(handle); }
 
 Status CpuBackend::copy_to_device(BufferHandle dst, const void* src,
                                   std::size_t bytes) {
@@ -53,7 +53,11 @@ Status CpuBackend::execute_async(const BatchPlan& /*plan*/,
         return Error::invalid_argument("cpu backend has no compiled graph");
     }
     Executor executor;
-    auto result = executor.run(*graph_, context.inputs, allocator_);
+    std::shared_ptr<Allocator> allocator =
+        context.allocator ? context.allocator
+                          : std::static_pointer_cast<Allocator>(allocator_);
+    auto result =
+        executor.run(*graph_, context.inputs, std::move(allocator));
     if (!result.has_value()) {
         return result.error();
     }

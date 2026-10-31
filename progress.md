@@ -32,7 +32,7 @@
   - MLIR 延后到 P0.5 复核;vcpkg、Google Benchmark、JSON 序列化延后。
   - `Backend::device()` 返回 `Device` 值;`Graph::backward_graph` 用 `std::shared_ptr<Graph>`。
 - 落地模块:base、ir、memory、backend、ops(Add/Mul/MatMul)、hardware(CPU 探测 + 指纹)、scheduler、runtime(Executor/Engine)、CpuBackend、plugin/kv/rng/tuning 骨架、demo。
-- 验证:Debug 39/39、Release 39/39 `ctest` 通过;`ie_demo` 输出 `result: 15, 21, 27`。
+- 验证:Debug 49/49、Release 49/49 `ctest` 通过;`ie_demo` 输出 `result: 15, 21, 27`。
 - 已回写 `p0-mvp.md` §8 与 `00-overview/decisions-log.md`。
 
 ## 待办(后续)

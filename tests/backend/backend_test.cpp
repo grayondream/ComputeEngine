@@ -14,8 +14,8 @@ TEST(BackendRegistryTest, RegistersAndCreates) {
     EXPECT_TRUE(st.has_value() || st.error().code == Error::Code::AlreadyExists);
     EXPECT_TRUE(reg.contains(BackendKind::CUDA));
     auto created = reg.create(BackendKind::CUDA);
-    ASSERT_TRUE(created.has_value());
-    EXPECT_EQ(created->get(), nullptr);
+    ASSERT_FALSE(created.has_value());
+    EXPECT_EQ(created.error().code, Error::Code::Runtime);
 }
 
 TEST(BackendRegistryTest, DuplicateRegistrationIsRejected) {
@@ -26,6 +26,13 @@ TEST(BackendRegistryTest, DuplicateRegistrationIsRejected) {
     auto st = reg.register_backend(BackendKind::VULKAN,
                                    [] { return std::unique_ptr<Backend>{}; });
     EXPECT_EQ(st.error().code, Error::Code::AlreadyExists);
+}
+
+TEST(BackendRegistryTest, EmptyFactoryIsRejected) {
+    auto& reg = BackendRegistry::instance();
+    auto st = reg.register_backend(BackendKind::CPU, BackendRegistry::Factory{});
+    ASSERT_FALSE(st.has_value());
+    EXPECT_EQ(st.error().code, Error::Code::InvalidArgument);
 }
 
 TEST(DeviceSelectorTest, ReturnsNoneForP0) {

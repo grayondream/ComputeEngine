@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <optional>
 
 #include "core/backend/backend.h"
@@ -37,7 +38,8 @@ public:
     Result<MemoryPolicy> memory_policy() const override;
 
 private:
-    MallocAllocator allocator_;
+    std::shared_ptr<MallocAllocator> allocator_{
+        std::make_shared<MallocAllocator>()};
     std::optional<Graph> graph_;
 };
 

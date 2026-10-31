@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <mutex>
-#include <unordered_set>
+#include <unordered_map>
 
 #include "core/memory/allocator.h"
 
@@ -21,7 +21,7 @@ public:
             return Error::out_of_memory("malloc failed");
         }
         std::lock_guard<std::mutex> lock(mutex_);
-        blocks_.insert(raw);
+        blocks_.emplace(raw, bytes);
         bytes_ += bytes;
         (void)kind;
         return raw;
@@ -36,6 +36,7 @@ public:
         if (it == blocks_.end()) {
             return;
         }
+        bytes_ -= it->second;
         blocks_.erase(it);
         std::free(handle);
     }
@@ -56,7 +57,7 @@ public:
 
 private:
     mutable std::mutex mutex_;
-    std::unordered_set<void*> blocks_;
+    std::unordered_map<void*, std::size_t> blocks_;
     std::size_t bytes_{0};
 };
 

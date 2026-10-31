@@ -1,5 +1,6 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -12,7 +13,7 @@ namespace ie {
 
 struct ExecutionContext {
     Device device{Device::CPU};
-    Allocator* allocator{nullptr};
+    std::shared_ptr<Allocator> allocator;
     std::unordered_map<std::string, Tensor> inputs;
     std::vector<Tensor> outputs;
     void* stream{nullptr};

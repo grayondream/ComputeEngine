@@ -15,11 +15,14 @@ public:
         if (context.allocator == nullptr) {
             return Error::invalid_argument("Add requires an allocator");
         }
+        if (auto valid = validate_p0_kernel_inputs(inputs); !valid.has_value()) {
+            return valid.error();
+        }
         if (inputs[0]->shape != inputs[1]->shape) {
             return Error::invalid_argument("Add shape mismatch");
         }
         auto result = Tensor::allocate(inputs[0]->shape, inputs[0]->dtype,
-                                       *context.allocator);
+                                       context.allocator);
         if (!result.has_value()) {
             return result.error();
         }
