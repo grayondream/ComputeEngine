@@ -5,6 +5,7 @@ add_executable(ie_tests
     backend/backend_test.cpp
     ops/ops_test.cpp
     hardware/hardware_test.cpp
+    scheduler/scheduler_test.cpp
 )
 target_link_libraries(ie_tests PRIVATE ie_core GTest::gtest_main)
 include(GoogleTest)

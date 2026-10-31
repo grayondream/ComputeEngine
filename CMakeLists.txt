@@ -13,6 +13,7 @@ add_library(ie_core STATIC
     src/core/ops/op_registry.cpp
     src/core/hardware/detector.cpp
     src/core/hardware/optimization_planner.cpp
+    src/core/scheduler/static_scheduler.cpp
 )
 target_include_directories(ie_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_options(ie_core PRIVATE -Wall -Wextra -Wpedantic)
