@@ -33,6 +33,13 @@
   - `Backend::device()` 返回 `Device` 值;`Graph::backward_graph` 用 `std::shared_ptr<Graph>`。
 - 落地模块:base、ir、memory、backend、ops(Add/Mul/MatMul)、hardware(CPU 探测 + 指纹)、scheduler、runtime(Executor/Engine)、CpuBackend、plugin/kv/rng/tuning 骨架、demo。
 - 验证:Debug 49/49、Release 49/49 `ctest` 通过;`ie_demo` 输出 `result: 15, 21, 27`。
+- 整分支复审后的修复(均 RED→GREEN):
+  - Tensor 分配改为通过分配器释放(共享持有 allocator,输出可活过 Engine),并修正 allocator 字节统计。
+  - `Shape::is_concrete()` + `Tensor::allocate` 拒绝动态/零/空 shape。
+  - CPU kernel 拒绝非 F32、空 buffer;Executor 拒绝空输入 buffer。
+  - 注册表拒绝空工厂;create 遇到 null 工厂返回 `Runtime` 错误。
+  - `MulOp::configure` 允许无 scalar,恢复双输入 Mul 的 Executor 路径。
+- ASan/UBSan 构建 49/49 通过。
 - 已回写 `p0-mvp.md` §8 与 `00-overview/decisions-log.md`。
 
 ## 待办(后续)
