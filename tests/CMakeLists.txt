@@ -6,7 +6,8 @@ add_executable(ie_tests
     ops/ops_test.cpp
     hardware/hardware_test.cpp
     scheduler/scheduler_test.cpp
+    runtime/engine_e2e_test.cpp
 )
-target_link_libraries(ie_tests PRIVATE ie_core GTest::gtest_main)
+target_link_libraries(ie_tests PRIVATE ie_cpu GTest::gtest_main)
 include(GoogleTest)
 gtest_discover_tests(ie_tests)

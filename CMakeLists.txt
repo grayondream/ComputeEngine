@@ -14,7 +14,15 @@ add_library(ie_core STATIC
     src/core/hardware/detector.cpp
     src/core/hardware/optimization_planner.cpp
     src/core/scheduler/static_scheduler.cpp
+    src/core/runtime/executor.cpp
 )
+
+add_library(ie_cpu STATIC
+    src/backends/cpu/cpu_backend.cpp
+    src/core/runtime/engine.cpp
+)
+target_link_libraries(ie_cpu PUBLIC ie_core)
+target_compile_options(ie_cpu PRIVATE -Wall -Wextra -Wpedantic)
 target_include_directories(ie_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_options(ie_core PRIVATE -Wall -Wextra -Wpedantic)
 find_package(Threads REQUIRED)
