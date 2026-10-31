@@ -4,6 +4,7 @@ add_executable(ie_tests
     memory/memory_test.cpp
     backend/backend_test.cpp
     ops/ops_test.cpp
+    hardware/hardware_test.cpp
 )
 target_link_libraries(ie_tests PRIVATE ie_core GTest::gtest_main)
 include(GoogleTest)
