@@ -1,20 +1,23 @@
 # 决策建议台账(Decision Log)
 
 > **约定(2026-10-18 修订)**:本引擎的工程决策**不在 Spec 期硬锁定**,改为「Spec 只记录**决策点 + 默认建议 + 副作用**,各里程碑**实现时**在其实现内裁定,并回写对应 Spec」。下表是已识别的决策点集合与当前**默认建议(仅供参考,可改)**,不再是硬约束。
-> 状态约定:⏳ = 待实现时裁定(默认建议)。表中的"来源"指第一次识别到该点的 Spec。
+> 状态约定:⏳ = 待实现时裁定(默认建议);✅ = 已按实现期裁定。
 
 ---
 
-## P0-MVP · 工程选型(来源 `p0-mvp.md`)
-| 决策点 | 默认建议 | 副作用/备注 | 状态 |
+## P0-MVP · 工程选型(来源 `p0-mvp.md`)✅ 已实现期裁定
+| 决策点 | 裁定 | 副作用/备注 | 状态 |
 |---|---|---|---|
-| C++ 标准 | C++23 | `std::expected/std::span/std::optional` 可用 | ⏳ |
-| 构建系统 | CMake + Ninja | 后端拆独立静态库 | ⏳ |
-| 依赖管理 | vcpkg | 可降级为手动子模块 | ⏳ |
-| 测试框架 | GoogleTest | CI 友好 | ⏳ |
-| 基准框架 | Google Benchmark | P1 起性能 sanity | ⏳ |
-| 是否引入 MLIR | 引入 MLIR(自定义 Dialect 多层 IR) | 影响大:构建/依赖/动态 shape 对齐 | ⏳ |
-| IR 序列化 | JSON | 与 GraphExporter 对齐 | ⏳ |
+| C++ 标准 | **C++20** | 自研 `Status`/`Result<T>`(无 `std::expected`) | ✅ |
+| 构建系统 | CMake + Ninja | `ie_core`/`ie_cpu`/`ie_demo` | ✅ |
+| 依赖管理 | 系统 GoogleTest 1.17 | vcpkg 延后 | ✅ |
+| 测试框架 | GoogleTest | 39 个 ctest 全绿(Debug/Release) | ✅ |
+| 基准框架 | Google Benchmark(延后 P1) | P0 不做基准 | ✅ |
+| 是否引入 MLIR | 延后 P0.5 复核;P0 手写 IR | 保持分层,便于后续接 Dialect | ✅ |
+| IR 序列化 | JSON(延后) | P0 无 exporter/加载器 | ✅ |
+| 代码布局 | `src/` 代码、`tests/` 测试、`docs/` 文档 | 用户裁定 | ✅ |
+| `Backend::device()` | 返回 `Device` 值 | 避让同名 `enum class Device` | ✅ |
+| `Graph::backward_graph` | `std::shared_ptr<Graph>` | 递归 `optional` 不可编译 | ✅ |
 
 ## P0.5 · 接口冻结(来源 `p0.5-interface-freeze.md`)
 | 决策点 | 默认建议 | 副作用/备注 | 状态 |

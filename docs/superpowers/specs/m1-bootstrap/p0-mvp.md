@@ -82,13 +82,13 @@ infer-engine/
 
 | 决策点 | 默认建议 | 副作用/影响 |
 |---|---|---|
-| C++ 标准 | **C++23** | `std::expected/std::span/std::optional` 可直接用(§4.1/§3);GCC13+/Clang17+ |
+| C++ 标准 | **C++20(实现期裁定)** | 用户要求 C++20;无 `std::expected`,改用自研 `Status`/`Result<T>` |
 | 构建系统 | **CMake + Ninja** | 后端独立静态库、增量构建(§19) |
-| 依赖管理 | **vcpkg** | 原生库集成;降级路径=手动子模块 |
+| 依赖管理 | **系统 GoogleTest;vcpkg 延后** | P0 仅需 GTest,`find_package(GTest REQUIRED)` |
 | 测试框架 | **GoogleTest** | 断言/参数化/CI |
-| 基准框架 | **Google Benchmark** | P1 起性能 sanity 与对比 |
-| 是否引入 MLIR | **引入 MLIR(候选)** | 多层 IR 走 MLIR 自定义 Dialect;影响大:构建/依赖/TableGen/动态 shape 对齐,建议实现 P0.5 时复核 |
-| IR 序列化 | **JSON** | 与 GraphExporter 的 JSON 输出一致;加载器/中间产物用 JSON |
+| 基准框架 | **Google Benchmark(延后 P1)** | P0 不做基准 |
+| 是否引入 MLIR | **延后到 P0.5 复核;P0 手写 IR** | 多层 IR 仍按设计分层,暂不接 MLIR 依赖 |
+| IR 序列化 | **JSON(延后)** | P0 无 exporter/加载器,序列化后续里程碑再落地 |
 
 ### MLIR 引入的影响面(如实现时采纳"引入 MLIR"则需一并落地)
 
@@ -97,3 +97,17 @@ infer-engine/
 - 与"模型执行只依赖 IR 语义、不依赖模型类别"不冲突——Dialect 保持模型类别无关。
 - `Graph::bind`(§3.4 动态维度绑定)与 MLIR 的动态 shape 机制需在实现时对齐设计。
 - 代价:构建时间与体积上升(§19 风险需同时考虑 MLIR 作为核心依赖的地位)。
+
+### 实现期裁定(P0-MVP 已落地,2026-10-31)
+
+实际实现采用以下裁定(覆盖上表的默认建议):
+
+1. **C++20**:用户裁定 C++20。因无 `std::expected`,自研 `Status`/`Result<T>`(基于 `std::optional`,保留 `has_value/error`)。
+2. **目录布局**:代码在 `src/`(`src/core/...`、`src/backends/...`、`src/demo/...`),测试在 `tests/`,文档在 `docs/`。
+3. **`Backend::device()` 返回 `Device` 值**:设计原文 `Device*` 与 `enum class Device` 同名冲突。
+4. **`Graph::backward_graph` 用 `std::shared_ptr<Graph>`**:`std::optional<Graph>` 是递归完整类型,C++20 不可编译。
+5. **依赖管理**:vcpkg 延后;P0 用系统 GoogleTest 1.17 + `find_package(GTest)`。
+6. **MLIR**:延后到 P0.5 末复核;P0 的 IR 手写并保持分层,便于后续接 Dialect。
+7. **Google Benchmark / JSON 序列化**:延后(P1 / 需要 exporter 的里程碑)。
+
+**验收结果**:Debug 与 Release 均 39/39 `ctest` 通过;`ie_demo` 输出 `result: 15, 21, 27`;`HardwareDetector::detect_cpu()` 返回含 `fingerprint`、AVX2 等能力位的画像;`BackendRegistry` 可注册并创建 CPU 后端。

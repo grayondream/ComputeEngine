@@ -23,6 +23,10 @@ add_library(ie_cpu STATIC
 )
 target_link_libraries(ie_cpu PUBLIC ie_core)
 target_compile_options(ie_cpu PRIVATE -Wall -Wextra -Wpedantic)
+
+add_executable(ie_demo src/demo/main.cpp)
+target_link_libraries(ie_demo PRIVATE ie_cpu)
+add_test(NAME demo_e2e COMMAND ie_demo)
 target_include_directories(ie_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_options(ie_core PRIVATE -Wall -Wextra -Wpedantic)
 find_package(Threads REQUIRED)

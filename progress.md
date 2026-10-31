@@ -24,5 +24,16 @@
   - `todo.md`、`progress.md` 同步此决策模式。
 - 结论:本仓库现按"实现时决定、回写 Spec"推进,不再在 Spec 期锁定决策。
 
+### 2026-10-31 · P0-MVP 实现完成 ✅
+- 按 `docs/superpowers/plans/2026-10-31-p0-mvp-skeleton.md` 以 TDD 逐 Task 实现(10 个 Task,均先让测试失败再实现)。
+- 工程裁定(实现期):
+  - C++20(用户要求);因无 `std::expected`,自研 `Status`/`Result<T>`。
+  - 目录:代码 `src/`、测试 `tests/`、文档 `docs/`;CMake + Ninja;系统 GoogleTest 1.17。
+  - MLIR 延后到 P0.5 复核;vcpkg、Google Benchmark、JSON 序列化延后。
+  - `Backend::device()` 返回 `Device` 值;`Graph::backward_graph` 用 `std::shared_ptr<Graph>`。
+- 落地模块:base、ir、memory、backend、ops(Add/Mul/MatMul)、hardware(CPU 探测 + 指纹)、scheduler、runtime(Executor/Engine)、CpuBackend、plugin/kv/rng/tuning 骨架、demo。
+- 验证:Debug 39/39、Release 39/39 `ctest` 通过;`ie_demo` 输出 `result: 15, 21, 27`。
+- 已回写 `p0-mvp.md` §8 与 `00-overview/decisions-log.md`。
+
 ## 待办(后续)
 - 按里程碑顺序实现,每份 Spec 的 DoD 作验收;实现时裁决各「决策点」并回写。

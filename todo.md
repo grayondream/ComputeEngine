@@ -7,11 +7,26 @@
 - [x] 创建并维护 `todo.md`、`progress.md`
 
 ## 决策处理方式(2026-10-18 修订 ◆)
-- 用户在实现过程中提出:**不再在 Spec 期硬锁定决策,回退到"待实现时定"**。
-- 因此全部已记录决策已改写为**候选建议(默认建议 + 副作用)**,见 `00-overview/decisions-log.md` 与各 Spec 末节「决策点(默认建议 · 待实现时定)」。
-- 后续:**不逐项向用户问**,实现到某里程碑时在其实现内裁定并回写对应 Spec。
+- 不再在 Spec 期硬锁定决策;决策在对应里程碑实现时裁定并回写 Spec/台账。
+- Spec 末节「决策点(默认建议 · 待实现时定)」为候选,实现者从默认建议起步。
 
-## 后续(由 Spec 衍生,按里程碑逐个实现)
-- [ ] 按里程碑顺序启动实现:P0-MVP → P0.5 → P1 → P2 → …(每份 Spec 的 DoD 作为验收)
-- [ ] 每个里程碑实现时:对照「决策点」节,从默认建议起步,裁定后可改并回写 Spec/台账
-- [ ] 注意 P0 的关键候选:P0 工程选型(C++23/CMake/vcpkg/GTest/GBench/MLIR 候选/JSON)中,MLIR 影响面大,实现 P0/P0.5 时重点复核
+## P0-MVP 实现(2026-10-31 完成 ✅)
+- [x] 实现计划:`docs/superpowers/plans/2026-10-31-p0-mvp-skeleton.md`(10 个 Task)
+- [x] 构建/工程:C++20、CMake + Ninja、系统 GoogleTest、`src/` 布局
+- [x] `src/core/base`:Error/Status/Result(自研)、DType/Device/Layout/Shape
+- [x] `src/core/ir`:Graph/Node/Value/Edge/ControlFlow、GraphBuilder、bind
+- [x] `src/core/memory`:MallocAllocator、Tensor、MemoryPolicy、TransferManager 骨架
+- [x] `src/core/backend`:Backend/BackendCaps/BackendRegistry/DeviceSelector/EngineConfig/BackendMatrix
+- [x] `src/core/ops`:Op/OpRegistry、Add/Mul/MatMul CPU kernel
+- [x] `src/core/hardware`:CapabilitySet/HardwareProfile、CPU 探测、OptimizationPlanner 骨架
+- [x] `src/core/scheduler`:Scheduler/BatchPlan/StaticScheduler
+- [x] `src/core/runtime`:ExecutionContext/Executor/Engine、CpuBackend
+- [x] `src/core/plugin`、`src/core/tuning`、RNG 骨架
+- [x] `src/demo/main.cpp`:`(a+b)*3` 输出 15,21,27
+- [x] 验证:Debug/Release 各 39/39 ctest 通过
+- [x] 回写 `p0-mvp.md` §8 与 `decisions-log.md` 的实现期裁定
+
+## 后续
+- [ ] P0.5 接口冻结(见 `docs/superpowers/specs/m1-bootstrap/p0.5-interface-freeze.md`)
+- [ ] 每个里程碑实现时:对照「决策点」节,从默认建议起步,裁定后回写 Spec/台账
+- [ ] P0.5 重点复核:是否引入 MLIR、插件 ABI 提前锁定
