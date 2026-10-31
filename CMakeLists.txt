@@ -10,6 +10,7 @@ add_library(ie_core STATIC
     src/core/base/types.cpp
     src/core/ir/graph.cpp
     src/core/backend/engine_config.cpp
+    src/core/ops/op_registry.cpp
 )
 target_include_directories(ie_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_compile_options(ie_core PRIVATE -Wall -Wextra -Wpedantic)
