@@ -1,4 +1,6 @@
 build/
+build-release/
+.superpowers/
 ARCHITECTURE.md
 PROGRESS.md
 TODO.md
