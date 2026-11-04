@@ -37,7 +37,7 @@
 - [x] Task 7 训练层(`7e3afd2`,默认值/字段补强 `7ca506b`)
 - [x] Task 8 校验与调试层(`815dfd3`)
 - [x] Task 9 模型转换层与量化插件(`63b18ca`,复审修复 `b28daf5`)
-- [x] Task 10 C ABI、支撑层、接口清单与文档回写(`feat(p0.5): freeze c abi and support interfaces`)
+- [x] Task 10 C ABI、支撑层、接口清单与文档回写(`fa46124`)
 - [x] 关键模块:feature flags/API 版本、pass/tuning、runtime/transfer/hybrid、rules、四族 ops、LLM、training、validation、converter/quant、C ABI、security/fault/observability/tools/sdk/packaging/benchmarks
 - [x] 接口清单:`docs/superpowers/specs/m1-bootstrap/p0.5-interface-inventory.md`(79 个头文件 / 10 个契约组 / 冻结版本 `0.1`)
 - [x] 验证:Debug **106/106**、Release **106/106** `ctest` 通过;`ie_demo` 仍输出 `result: 15, 21, 27`;P0-MVP 回归通过

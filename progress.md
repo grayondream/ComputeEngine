@@ -76,7 +76,7 @@
   - 新增 `converter/model_converter.h`、`format_loader/format_loader.h`、`op_mapping/op_mapping.h`、`validation/conversion_validator.h`、`core/plugin/quant_plugin.h`、`quantization/quant_plugins.h`。
   - 未实现转换/量化方法返回 `Unsupported`;四个量化插件 `api_version` 均为 `0.1`。
   - 转换输出统一使用 `Status`(规范 void 结果),未新增 `Result<void>` 特化。
-- Task 10 C ABI、支撑层与文档回写完成(提交 `feat(p0.5): freeze c abi and support interfaces`):
+- Task 10 C ABI、支撑层与文档回写完成(提交 `fa46124`):
   - 新增 `api/c_api/ie_api.h`(`IE_API_VERSION_MAJOR=0`/`MINOR=1`、`IE_API`、三个 `extern "C"` 函数)与 `ie_c_api.cpp`;`ie_create_backend` 仅识别 `"cpu"`,`ie_destroy_backend(nullptr)` 安全,`ie_api_version()` 恒为 `"0.1"`;`.cpp` 已加入 `ie_cpu`。
   - `plugin_api.h` 增加 `kApiVersionString`;`ie_api.h` 用 `static_assert` 锁定宏与 C++ 常量一致。
   - 新增 `api/openai_compat`、`api/grpc`、`api/cli`、`security`、`fault_tolerance`、`observability`、`tools`、`sdk`、`packaging`、`benchmarks` 支撑层接口;`AuditLog::record/entries` 内存留存,其余生命周期返回 `{}`/空,功能方法返回 `Unsupported`。
