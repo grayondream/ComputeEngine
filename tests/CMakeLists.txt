@@ -12,6 +12,7 @@ add_executable(ie_tests
     interface/compiler_tuning_contract_test.cpp
     interface/hybrid_runtime_contract_test.cpp
     interface/rules_contract_test.cpp
+    interface/ops_families_contract_test.cpp
 )
 target_link_libraries(ie_tests PRIVATE ie_cpu GTest::gtest_main)
 include(GoogleTest)
