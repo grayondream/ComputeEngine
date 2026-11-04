@@ -51,6 +51,12 @@
   - 未实现调优接口统一返回 `Error::unsupported(...)`;profiler `replan` 返回 `reason="runtime-profiler-stub"`。
   - 新增 `tests/interface/compiler_tuning_contract_test.cpp`;`ctest` 62/62 通过。
   - 复审修复(提交 `b31d1fa`):补齐 `types.h` 使头文件可独立编译,`replan` 去 `const` 对齐 §6.4,新增 PassRegistry 错误路径、select 全过滤项、PassManager 早退测试;`ctest` 67/67 通过。
+- Task 3 运行时执行器、传输与混合层完成(提交 `155e8ab`):
+  - 新增 `core/runtime/iterative_executor.h`、`core/backend/backend_plugin.h`、`core/scheduler/scheduler_plugin.h`、`core/hardware/hardware_probe_plugin.h`。
+  - 新增 `hybrid/hybrid_config.h`、`planner/hybrid_planner.h`(含其后的 `ExecutionPlan`)、`scheduler/hybrid_scheduler.h`、`memory/hybrid_memory.h`、`orchestrator/hybrid_orchestrator.h`。
+  - `HybridConfig` 移入 `hybrid/hybrid_config.h` 并按 §7.2 扩展;`engine_config.h` 改为 include,`EngineConfig` 字段不变;`ValidationConfig` 未动。
+  - `TransferManager` 增加路由表与 `transfer/prefetch_async/wait`,原 `copy` 委托 `transfer`;未实现能力统一返回 `Unsupported`。
+  - 新增 `tests/interface/hybrid_runtime_contract_test.cpp`;`ctest` 72/72 通过。
 
 ## 待办(后续)
 - 按里程碑顺序实现,每份 Spec 的 DoD 作验收;实现时裁决各「决策点」并回写。
