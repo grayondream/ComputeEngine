@@ -60,9 +60,20 @@ public:
     }
 
     // P0 compatibility entry point: same-device copies still succeed.
+    // Cross-device callers must use transfer() with explicit src/dst handles.
     Status copy(Device src, Device dst, BufferHandle src_handle,
                 std::size_t bytes) {
-        return transfer(src_handle, dst, src_handle, src, bytes);
+        if (src != dst) {
+            return Error::unsupported("cross-device copy requires transfer()");
+        }
+        if (bytes == 0) {
+            return {};
+        }
+        if (src_handle == nullptr) {
+            return Error::invalid_argument("null buffer for same-device copy");
+        }
+        std::memcpy(src_handle, src_handle, bytes);
+        return {};
     }
 
 private:
