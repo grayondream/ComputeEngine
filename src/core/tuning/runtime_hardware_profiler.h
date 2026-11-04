@@ -26,7 +26,7 @@ public:
 
     OptimizationPlanner::Plan replan(
         const HardwareProfile& /*profile*/,
-        const MeasuredPerformance& /*perf*/, ModelKind /*kind*/) const {
+        const MeasuredPerformance& /*perf*/, ModelKind /*kind*/) {
         OptimizationPlanner::Plan plan;
         plan.reason = "runtime-profiler-stub";
         return plan;

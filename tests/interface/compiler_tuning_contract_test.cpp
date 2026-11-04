@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 #include <memory>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "core/hardware/profile.h"
 #include "core/ir/graph_builder.h"
@@ -33,6 +36,38 @@ TEST(PassManagerTest, RunsPassesInOrder) {
     EXPECT_EQ(manager.size(), 2u);
 }
 
+struct RecordingPass : Pass {
+    std::vector<std::string>* log;
+    std::string id;
+    Status result;
+
+    RecordingPass(std::vector<std::string>* l, std::string n, Status r = {})
+        : log(l), id(std::move(n)), result(std::move(r)) {}
+
+    std::string name() const override { return id; }
+    Status run(Graph&, PassContext&) override {
+        log->push_back(id);
+        return result;
+    }
+};
+
+TEST(PassManagerTest, StopsAtFirstFailure) {
+    std::vector<std::string> log;
+    PassManager manager;
+    manager.add(std::make_unique<RecordingPass>(&log, "first"));
+    manager.add(std::make_unique<RecordingPass>(
+        &log, "second", Error::runtime("boom")));
+    manager.add(std::make_unique<RecordingPass>(&log, "third"));
+
+    Graph graph;
+    PassContext context;
+    auto status = manager.run(graph, context);
+    ASSERT_FALSE(status.has_value());
+    EXPECT_EQ(status.error().code, Error::Code::Runtime);
+    EXPECT_EQ(log, (std::vector<std::string>{"first", "second"}));
+    EXPECT_EQ(manager.size(), 3u);
+}
+
 TEST(PassRegistryTest, RegisterCreateAndDuplicate) {
     auto& registry = PassRegistry::instance();
     ASSERT_TRUE(registry.register_pass("stub", [] { return std::make_unique<StubPass>(nullptr); }).has_value());
@@ -42,6 +77,31 @@ TEST(PassRegistryTest, RegisterCreateAndDuplicate) {
     auto duplicate = registry.register_pass("stub", [] { return std::make_unique<StubPass>(nullptr); });
     ASSERT_FALSE(duplicate.has_value());
     EXPECT_EQ(duplicate.error().code, Error::Code::AlreadyExists);
+}
+
+TEST(PassRegistryTest, RejectsEmptyCreatorAndName) {
+    auto& registry = PassRegistry::instance();
+    EXPECT_EQ(registry.register_pass("empty-creator", PassRegistry::Creator{}).error().code,
+              Error::Code::InvalidArgument);
+    EXPECT_EQ(registry.register_pass("", [] { return std::make_unique<StubPass>(nullptr); }).error().code,
+              Error::Code::InvalidArgument);
+}
+
+TEST(PassRegistryTest, CreateMissReturnsNotFound) {
+    auto& registry = PassRegistry::instance();
+    auto missing = registry.create("does-not-exist");
+    ASSERT_FALSE(missing.has_value());
+    EXPECT_EQ(missing.error().code, Error::Code::NotFound);
+}
+
+TEST(PassRegistryTest, NullFactoryReturnsRuntime) {
+    auto& registry = PassRegistry::instance();
+    ASSERT_TRUE(registry.register_pass("null-factory", [] {
+        return std::unique_ptr<Pass>{};
+    }).has_value());
+    auto created = registry.create("null-factory");
+    ASSERT_FALSE(created.has_value());
+    EXPECT_EQ(created.error().code, Error::Code::Runtime);
 }
 
 struct StubPassPlugin : PassPlugin {
@@ -84,6 +144,79 @@ TEST(KernelVariantRegistryTest, SelectsByCapability) {
                                 without, ModelKind::TRADITIONAL);
     ASSERT_TRUE(none.has_value());
     EXPECT_TRUE(none->empty());
+}
+
+namespace {
+
+KernelVariant MakeVariant(std::string name) {
+    KernelVariant variant;
+    variant.name = std::move(name);
+    return variant;
+}
+
+HardwareProfile CapableProfile() {
+    HardwareProfile profile;
+    profile.matrix.tensor_to_vector_ratio = 10.0f;
+    profile.mem.vram_total = 8192;
+    profile.mem.bandwidth_gbps = 100.0f;
+    profile.cu.l3_cache_size = 4096;
+    profile.caps.set("avx512", true);
+    return profile;
+}
+
+struct SelectCase {
+    const char* name;
+    KernelVariant variant;
+    bool expect_match;
+};
+
+}  // namespace
+
+TEST(KernelVariantRegistryTest, FiltersEveryRequirement) {
+    const HardwareProfile profile = CapableProfile();
+
+    KernelVariant forbidden = MakeVariant("forbidden");
+    forbidden.req.forbidden_caps = {"avx512"};
+
+    KernelVariant kind_mismatch = MakeVariant("kind-mismatch");
+    kind_mismatch.target_kind = ModelKind::TRANSFORMER;
+
+    KernelVariant ratio_below = MakeVariant("ratio-below");
+    ratio_below.req.min_tensor_to_vector_ratio = 20.0f;
+
+    KernelVariant ratio_above = MakeVariant("ratio-above");
+    ratio_above.req.max_tensor_to_vector_ratio = 5.0f;
+
+    KernelVariant vram = MakeVariant("vram");
+    vram.req.min_vram = 16384;
+
+    KernelVariant bandwidth = MakeVariant("bandwidth");
+    bandwidth.req.min_bandwidth = 200.0f;
+
+    KernelVariant l3 = MakeVariant("l3");
+    l3.req.min_l3_cache = 8192;
+
+    const std::vector<SelectCase> cases{
+        {"forbidden_caps", forbidden, false},
+        {"target_kind", kind_mismatch, false},
+        {"ratio_below_min", ratio_below, false},
+        {"ratio_above_max", ratio_above, false},
+        {"min_vram", vram, false},
+        {"min_bandwidth", bandwidth, false},
+        {"min_l3_cache", l3, false},
+        {"all_satisfied", MakeVariant("match"), true},
+    };
+
+    for (const SelectCase& test_case : cases) {
+        KernelVariantRegistry registry;
+        registry.register_variant(OpType::MatMul, DType::F32, test_case.variant);
+        auto selected = registry.select(OpType::MatMul, DType::F32,
+                                        Shape{{2, 2}}, profile,
+                                        ModelKind::TRADITIONAL);
+        ASSERT_TRUE(selected.has_value()) << test_case.name;
+        EXPECT_EQ(selected->size(), test_case.expect_match ? 1u : 0u)
+            << test_case.name;
+    }
 }
 
 TEST(TuningContractsTest, DefaultsAreUnsupportedOrDefined) {

@@ -5,6 +5,7 @@
 
 #include "core/base/error.h"
 #include "core/base/shape.h"
+#include "core/base/types.h"
 #include "core/hardware/profile.h"
 #include "core/ir/model_kind.h"
 #include "core/ir/op_type.h"
