@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "core/base/error.h"
+#include "core/plugin/plugin_api.h"
 #include "core/plugin/plugin_meta.h"
 
 namespace ie {
@@ -22,6 +23,10 @@ public:
     Status register_plugin(std::unique_ptr<PluginT> plugin) {
         if (!plugin) {
             return Error::invalid_argument("null plugin");
+        }
+        if (!is_api_compatible(plugin->meta().api_version)) {
+            return Error::invalid_argument(
+                "incompatible plugin api_version: " + plugin->meta().api_version);
         }
         const std::string name = plugin->meta().name;
         if (plugins_.find(name) != plugins_.end()) {

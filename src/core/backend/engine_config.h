@@ -3,6 +3,7 @@
 #include <string>
 
 #include "core/base/error.h"
+#include "core/config/feature_flags.h"
 #include "core/ir/model_kind.h"
 
 namespace ie {
@@ -27,6 +28,7 @@ struct EngineConfig {
     bool enable_deterministic{false};
 
     ModelKind default_model_kind{ModelKind::UNKNOWN};
+    FeatureFlags features;
 
     struct HardwareAdaptation {
         bool auto_detect{true};
