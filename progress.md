@@ -50,6 +50,7 @@
   - `KernelVariant` 升级为设计 §6.2(`name/target_kind/req/cost`),`KernelVariantRegistry::select` 按能力位/阈值/`ModelKind` 过滤。
   - 未实现调优接口统一返回 `Error::unsupported(...)`;profiler `replan` 返回 `reason="runtime-profiler-stub"`。
   - 新增 `tests/interface/compiler_tuning_contract_test.cpp`;`ctest` 62/62 通过。
+  - 复审修复(提交 `b31d1fa`):补齐 `types.h` 使头文件可独立编译,`replan` 去 `const` 对齐 §6.4,新增 PassRegistry 错误路径、select 全过滤项、PassManager 早退测试;`ctest` 67/67 通过。
 
 ## 待办(后续)
 - 按里程碑顺序实现,每份 Spec 的 DoD 作验收;实现时裁决各「决策点」并回写。
