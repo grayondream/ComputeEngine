@@ -6,15 +6,11 @@
 #include "core/config/feature_flags.h"
 #include "core/ir/model_kind.h"
 #include "hybrid/hybrid_config.h"
+#include "validation/config.h"
 
 namespace ie {
 
 enum class GpuBackend { NONE, CUDA, VULKAN };
-
-struct ValidationConfig {
-    bool enable{false};
-    std::string trace_dir;
-};
 
 struct EngineConfig {
     GpuBackend gpu_backend{GpuBackend::NONE};
