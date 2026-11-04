@@ -57,7 +57,12 @@
   - `HybridConfig` 移入 `hybrid/hybrid_config.h` 并按 §7.2 扩展;`engine_config.h` 改为 include,`EngineConfig` 字段不变;`ValidationConfig` 未动。
   - `TransferManager` 增加路由表与 `transfer/prefetch_async/wait`,原 `copy` 委托 `transfer`;未实现能力统一返回 `Unsupported`。
   - 新增 `tests/interface/hybrid_runtime_contract_test.cpp`;`ctest` 72/72 通过。
+- Task 4 规则推理层完成(提交 `4129dae`):
+  - 新增 `rules/fact/fact.h`(`FactValue`/`Fact`/`WorkingMemory`)、`rules/rule/rule.h`(`Condition`/`Rule`)、`rules/agenda/agenda.h`(`Agenda`/`Trace`)、`rules/rule_engine.h`。
+  - `RuleEngine` 保存 facts/rules/trace;`fire()` 返回 `Error::unsupported("rule engine not implemented in P0.5")`。
+  - 新增 `ops/rule/rule_ops.h`:`RuleMatchOp`/`RuleFireOp`/`FactAssertOp` 均继承 `Op`,`forward` 返回 `Unsupported`。
+  - 新增 `tests/interface/rules_contract_test.cpp`;`ctest` 77/77 通过。
 
 ## 待办(后续)
 - 按里程碑顺序实现,每份 Spec 的 DoD 作验收;实现时裁决各「决策点」并回写。
-- P0.5 剩余 Task 3–8 继续按计划推进。
+- P0.5 剩余 Task 5–8 继续按计划推进。
