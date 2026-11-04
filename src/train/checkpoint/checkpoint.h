@@ -4,6 +4,7 @@
 #include <string>
 #include <unordered_map>
 
+#include "core/base/error.h"
 #include "core/ir/graph.h"
 #include "core/memory/allocator.h"
 #include "core/memory/tensor.h"
