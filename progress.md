@@ -54,7 +54,7 @@
   - 新增 `core/runtime/iterative_executor.h`、`core/backend/backend_plugin.h`、`core/scheduler/scheduler_plugin.h`、`core/hardware/hardware_probe_plugin.h`。
   - 新增 `hybrid/hybrid_config.h`、`planner/hybrid_planner.h`(含其后的 `ExecutionPlan`)、`scheduler/hybrid_scheduler.h`、`memory/hybrid_memory.h`、`orchestrator/hybrid_orchestrator.h`。
   - `HybridConfig` 移入 `hybrid/hybrid_config.h` 并按 §7.2 扩展;`engine_config.h` 改为 include,`EngineConfig` 字段不变。
-  - `TransferManager` 增加路由表与 `transfer/prefetch_async/wait`,原 `copy` 委托 `transfer`;未实现能力统一返回 `Unsupported`。
+  - `TransferManager` 增加路由表与 `transfer/prefetch_async/wait`;`copy` 同设备为 no-op(空指针/零字节按契约校验)、跨设备返回 `Unsupported`;未实现能力统一返回 `Unsupported`。
 - Task 4 规则推理层完成(提交 `4129dae`):
   - 新增 `rules/fact/fact.h`、`rules/rule/rule.h`、`rules/agenda/agenda.h`、`rules/rule_engine.h`。
   - `RuleEngine` 保存 facts/rules/trace;`fire()` 返回 `Unsupported`;新增 `ops/rule/rule_ops.h` 三个规则算子。
@@ -84,6 +84,11 @@
   - 新增 `tests/interface/api_support_contract_test.cpp`(8 项)与 `inventory_test.cpp`(1 项)。
 - 最终验证:Debug **106/106**、Release **106/106** `ctest` 通过;`./build/ie_demo` 仍输出 `result: 15, 21, 27`;P0-MVP 既有 e2e/49 项基线回归通过。
 - 实现期裁定:不引入 MLIR(自定义 `Graph::bind`)、插件 ABI 提前锁定 `0.1`、JSON 延后、`KernelVariant` 对齐 §6.2、`FeatureFlags` 位于 `core/config`、`HybridConfig`/`ValidationConfig` 独立头文件、`Status` 为规范 void 结果。
+- 整分支复审最终修复:
+  - `FeatureFlags` 明确为唯一权威全局门控,legacy bools 与 `hardware_adapt`/`validation` 开关仅作镜像/收窄;新增默认镜像一致性测试。
+  - `TransferManager::transfer` 非零字节先拒绝空指针,再处理同设备别名/路由;`copy` 同设备改为 no-op、跨设备 `Unsupported`。
+  - `Sandbox` 生命周期统一返回 `Unsupported`;C ABI 使用 `new (std::nothrow)`;插件注册表补充所有权/生命周期注释。
+  - 补齐转换/校验 9 组表驱动 `Unsupported` 默认行为测试;inventory 测试断言 10 组计数合计 79;文档方法数/Sandbox 描述与代码同步。
 
 ## 待办(后续)
 - 按里程碑顺序实现,每份 Spec 的 DoD 作验收;实现时裁决各「决策点」并回写。

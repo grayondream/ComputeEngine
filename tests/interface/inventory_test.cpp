@@ -129,9 +129,14 @@ constexpr std::array<InterfaceGroup, 10> kInterfaceGroups{{
 
 TEST(InterfaceInventoryTest, TenContractGroupsAreComplete) {
     EXPECT_EQ(std::size(kInterfaceGroups), 10u);
+    std::size_t total_headers = 0;
     for (const auto& group : kInterfaceGroups) {
         EXPECT_FALSE(group.name.empty());
         EXPECT_GT(group.header_count, 0u);
+        total_headers += group.header_count;
         std::cout << group.name << " (" << group.header_count << " headers)\n";
     }
+    // Frozen total from docs/superpowers/specs/m1-bootstrap/
+    // p0.5-interface-inventory.md.
+    EXPECT_EQ(total_headers, 79u);
 }

@@ -43,6 +43,7 @@
 - [x] 验证:Debug **106/106**、Release **106/106** `ctest` 通过;`ie_demo` 仍输出 `result: 15, 21, 27`;P0-MVP 回归通过
 - [x] 回写 `p0.5-interface-freeze.md` §8 与 `decisions-log.md` 实现期裁定
 - [x] 重点复核已裁定:不引入 MLIR(自定义 `Graph::bind`)、插件 ABI 提前锁定 `0.1`、JSON 延后、`KernelVariant` 对齐 §6.2、`Status` 为规范 void 结果
+- [x] 整分支复审修复:门控权威性、transfer/copy 语义、Sandbox、C ABI nothrow、转换/校验表驱动 DoD #1 覆盖、inventory 总数与文档同步
 
 ## 后续
 - [ ] 每个里程碑实现时:对照「决策点」节,从默认建议起步,裁定后回写 Spec/台账

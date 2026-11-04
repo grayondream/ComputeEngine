@@ -29,6 +29,17 @@ public:
 
     Status transfer(BufferHandle dst, Device dst_dev, BufferHandle src,
                     Device src_dev, std::size_t bytes) {
+        // Reject null buffers before the dst == src shortcut: otherwise
+        // transfer(nullptr, dev, nullptr, dev, n > 0) would report success.
+        if (bytes > 0 && (dst == nullptr || src == nullptr)) {
+            return Error::invalid_argument("null buffer for transfer");
+        }
+        // Zero-byte and aliasing same-device transfers are already complete.
+        // The same-device guard preserves the frozen contract that a
+        // cross-device null/null zero-byte request is still Unsupported.
+        if (src_dev == dst_dev && (bytes == 0 || dst == src)) {
+            return {};
+        }
         auto it = routes_.find(std::make_pair(src_dev, dst_dev));
         if (it != routes_.end()) {
             if (!it->second) {
@@ -36,19 +47,13 @@ public:
             }
             return it->second(dst, dst_dev, src, src_dev, bytes);
         }
-        if (src_dev == dst_dev) {
-            if (bytes == 0 || dst == src) {
-                return {};
-            }
-            if (dst == nullptr || src == nullptr) {
-                return Error::invalid_argument(
-                    "null buffer for same-device transfer");
-            }
-            std::memcpy(dst, src, bytes);
-            return {};
+        if (src_dev != dst_dev) {
+            return Error::unsupported(
+                "cross-device transfer not implemented in P0.5");
         }
-        return Error::unsupported(
-            "cross-device transfer not implemented in P0.5");
+        // Same device, non-zero bytes, distinct non-null buffers.
+        std::memcpy(dst, src, bytes);
+        return {};
     }
 
     Status prefetch_async(BufferHandle, const void*, Stream, std::size_t) {
@@ -59,8 +64,9 @@ public:
         return Error::unsupported("transfer wait not implemented in P0.5");
     }
 
-    // P0 compatibility entry point: same-device copies still succeed.
-    // Cross-device callers must use transfer() with explicit src/dst handles.
+    // P0 compatibility entry point. Same-device copy is an explicit no-op
+    // (the handle is not copied or duplicated). Cross-device callers must use
+    // transfer() with explicit src/dst handles.
     Status copy(Device src, Device dst, BufferHandle src_handle,
                 std::size_t bytes) {
         if (src != dst) {
@@ -72,7 +78,6 @@ public:
         if (src_handle == nullptr) {
             return Error::invalid_argument("null buffer for same-device copy");
         }
-        std::memcpy(src_handle, src_handle, bytes);
         return {};
     }
 

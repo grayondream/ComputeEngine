@@ -148,6 +148,16 @@ TEST(TransferManagerTest, SameDeviceMemcpyAndNullChecks) {
     EXPECT_EQ(manager.transfer(dst, Device::CPU, nullptr, Device::CPU, sizeof(src))
                   .error().code,
               Error::Code::InvalidArgument);
+
+    // dst == src must not mask a null-buffer error for non-zero transfers.
+    EXPECT_EQ(manager.transfer(nullptr, Device::CPU, nullptr, Device::CPU, 16)
+                  .error()
+                  .code,
+              Error::Code::InvalidArgument);
+    EXPECT_EQ(manager.transfer(nullptr, Device::CUDA, nullptr, Device::CPU, 16)
+                  .error()
+                  .code,
+              Error::Code::InvalidArgument);
 }
 
 TEST(TransferManagerTest, CopyStaysSameDeviceOnlyEvenWithRoute) {

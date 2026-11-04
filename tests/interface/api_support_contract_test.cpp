@@ -90,9 +90,10 @@ TEST(SecurityContractsTest, TenantsSandboxAndModelSecurity) {
     EXPECT_TRUE(tenants.list().empty());
 
     Sandbox sandbox;
-    EXPECT_TRUE(sandbox.initialize(SandboxConfig{}).has_value());
-    EXPECT_TRUE(sandbox.enter().has_value());
-    EXPECT_TRUE(sandbox.exit().has_value());
+    EXPECT_EQ(sandbox.initialize(SandboxConfig{}).error().code,
+              Error::Code::Unsupported);
+    EXPECT_EQ(sandbox.enter().error().code, Error::Code::Unsupported);
+    EXPECT_EQ(sandbox.exit().error().code, Error::Code::Unsupported);
     EXPECT_EQ(sandbox.execute("true").error().code,
               Error::Code::Unsupported);
 

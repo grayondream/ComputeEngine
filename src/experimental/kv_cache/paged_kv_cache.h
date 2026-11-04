@@ -32,3 +32,9 @@ public:
 };
 
 }  // namespace ie
+
+// Match the namespace layout of the other experimental modules while keeping
+// the frozen `ie::PagedKVCache` spelling.
+namespace ie::experimental::kv_cache {
+using ::ie::PagedKVCache;
+}  // namespace ie::experimental::kv_cache

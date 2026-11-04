@@ -12,6 +12,16 @@
 
 namespace ie {
 
+// Process-wide plugin registry.
+//
+// Ownership/lifetime contract:
+//   * The registry owns every accepted plugin through std::unique_ptr and
+//     keeps it alive for the registry's lifetime (a function-local static,
+//     i.e. until process exit).
+//   * get() returns a non-owning pointer valid for the registry's lifetime.
+//     Callers must not delete it or assume it outlives the registry.
+//   * load_shared_library() remains a frozen placeholder returning
+//     Unsupported; dynamic unloading is intentionally out of scope for P0.5.
 template <class PluginT>
 class PluginRegistry {
 public:

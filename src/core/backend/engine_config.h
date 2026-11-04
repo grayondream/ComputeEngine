@@ -12,6 +12,18 @@ namespace ie {
 
 enum class GpuBackend { NONE, CUDA, VULKAN };
 
+// Feature-gating precedence (P0.5 controller ruling):
+//   * `features` (FeatureFlags) is the single authoritative global gate for
+//     every optional capability. Nothing is enabled unless `features` allows
+//     it.
+//   * The legacy bools below (`enable_training`, `enable_validation`,
+//     `enable_deterministic`) and the `hardware_adapt` / `validation` toggles
+//     are per-engine narrowing mirror/overrides only. They may further
+//     restrict a capability for a specific EngineConfig instance, but they
+//     must never widen something that `features` has disabled.
+//   * Default construction keeps every mirror equal to its corresponding
+//     FeatureFlags default; see the contract test
+//     `EngineConfigFeatureTest.DefaultMirrorsMatchFeatureFlags`.
 struct EngineConfig {
     GpuBackend gpu_backend{GpuBackend::NONE};
     bool enable_cpu{true};

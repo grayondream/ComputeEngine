@@ -47,17 +47,23 @@ struct SandboxConfig {
     std::string root_dir;
 };
 
-// Sandbox lifecycle is a no-op in P0.5; executing code inside it is not
-// implemented yet.
+// Sandboxing is not implemented in P0.5: no lifecycle method performs any
+// enforcement, so all of them report Unsupported instead of pretending to
+// succeed.
 class Sandbox {
 public:
     Status initialize(const SandboxConfig& config) {
         (void)config;
-        return {};
+        return Error::unsupported("sandbox not implemented in P0.5");
     }
 
-    Status enter() { return {}; }
-    Status exit() { return {}; }
+    Status enter() {
+        return Error::unsupported("sandbox not implemented in P0.5");
+    }
+
+    Status exit() {
+        return Error::unsupported("sandbox not implemented in P0.5");
+    }
 
     Status execute(std::string_view command) {
         (void)command;

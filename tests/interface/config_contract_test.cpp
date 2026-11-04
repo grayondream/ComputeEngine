@@ -70,6 +70,20 @@ TEST(EngineConfigFeatureTest, CarriesFlags) {
     EXPECT_TRUE(cfg.features.enable_flash_attention);
 }
 
+// FeatureFlags is the authoritative gate; the legacy bools are per-engine
+// mirrors and must start in sync with it.
+TEST(EngineConfigFeatureTest, DefaultMirrorsMatchFeatureFlags) {
+    EngineConfig cfg;
+    EXPECT_EQ(cfg.enable_training, cfg.features.enable_training);
+    EXPECT_EQ(cfg.enable_validation, cfg.features.enable_validation);
+    EXPECT_EQ(cfg.enable_deterministic, cfg.features.enable_deterministic);
+    EXPECT_EQ(cfg.hardware_adapt.enable_runtime_autotuning,
+              cfg.features.enable_runtime_autotuning);
+    EXPECT_EQ(cfg.hardware_adapt.enable_capability_driven_selection,
+              cfg.features.enable_capability_driven_selection);
+    EXPECT_EQ(cfg.validation.enabled, cfg.features.enable_validation);
+}
+
 TEST(ModelFormatTest, HasAllDesignFormats) {
     EXPECT_NE(ModelFormat::ONNX, ModelFormat::GGUF);
     EXPECT_NE(ModelFormat::SAFETENSORS, ModelFormat::CUSTOM);
