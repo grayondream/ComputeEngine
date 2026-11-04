@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <memory>
+
 #include "converter/format_loader/format_loader.h"
 #include "converter/model_converter.h"
 #include "converter/op_mapping/op_mapping.h"
@@ -28,6 +30,13 @@ TEST(ConverterContractsTest, DefaultsAreUnsupported) {
               Error::Code::Unsupported);
     EXPECT_EQ(quant.dequantize(tensor, QuantConfig{}).error().code,
               Error::Code::Unsupported);
+}
+
+TEST(QuantPluginMetaTest, ApiVersionIsFrozenAtZeroOne) {
+    EXPECT_EQ(Int8QuantPlugin{}.meta().api_version, "0.1");
+    EXPECT_EQ(GgufQuantPlugin{}.meta().api_version, "0.1");
+    EXPECT_EQ(AwqQuantPlugin{}.meta().api_version, "0.1");
+    EXPECT_EQ(GptqQuantPlugin{}.meta().api_version, "0.1");
 }
 
 TEST(QuantPluginRegistryTest, CompatiblePluginRegisters) {

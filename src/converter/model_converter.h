@@ -27,23 +27,23 @@ enum class GGUFQuantType {
 // contract only; every conversion path is unsupported.
 class ModelConverter {
 public:
-    static Result<void> convert_onnx_to_ie(const std::string& /*onnx_path*/,
-                                           const std::string& /*output_path*/) {
+    static Status convert_onnx_to_ie(const std::string& /*onnx_path*/,
+                                     const std::string& /*output_path*/) {
         return Error::unsupported("onnx conversion not implemented in P0.5");
     }
 
-    static Result<void> convert_tflite_to_ie(const std::string& /*tflite_path*/,
-                                             const std::string& /*output_path*/) {
+    static Status convert_tflite_to_ie(const std::string& /*tflite_path*/,
+                                       const std::string& /*output_path*/) {
         return Error::unsupported("tflite conversion not implemented in P0.5");
     }
 
-    static Result<void> convert_hf_to_safetensors(
+    static Status convert_hf_to_safetensors(
         const std::string& /*hf_path*/, const std::string& /*output_path*/) {
         return Error::unsupported(
             "safetensors conversion not implemented in P0.5");
     }
 
-    static Result<void> convert_hf_to_gguf(
+    static Status convert_hf_to_gguf(
         const std::string& /*hf_path*/, const std::string& /*output_path*/,
         GGUFQuantType /*quant*/ = GGUFQuantType::F16) {
         return Error::unsupported("gguf conversion not implemented in P0.5");
