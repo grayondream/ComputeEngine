@@ -69,6 +69,15 @@
   - 所有未实现接口统一返回 `Error::unsupported("... not implemented in P0.5")`;头文件通过 `-Wall -Wextra -Wpedantic -Werror` 独立编译检查。
   - 新增 `tests/interface/validation_contract_test.cpp`;`ctest` 94/94 通过。
 
+- Task 9 模型转换层与量化插件完成(提交 `63b18ca`):
+  - 新增 `converter/model_converter.h`(`GGUFQuantType` 10 个枚举值、`ModelConverter` §11.2 五个静态方法)。
+  - 新增 `converter/format_loader/format_loader.h`(`FormatLoader` + Onnx/Tflite/Caffe/Safetensors/Gguf)。
+  - 新增 `converter/op_mapping/op_mapping.h`(`OpMapping` + Onnx/Tflite/PyTorch/Gguf)。
+  - 新增 `converter/validation/conversion_validator.h`(§11.3 五阶段验证契约)。
+  - 新增 `core/plugin/quant_plugin.h`(`QuantConfig`/`QuantPlugin`)与 `converter/quantization/quant_plugins.h`(Int8/GGUF/AWQ/GPTQ,`api_version="0.1"`)。
+  - `error.h` 补充 `Result<void>` 特化,匹配 §11.2 的 `Result<void>` 签名。
+  - 新增 `tests/interface/converter_contract_test.cpp`;`ctest` 96/96 通过。
+
 ## 待办(后续)
 - 按里程碑顺序实现,每份 Spec 的 DoD 作验收;实现时裁决各「决策点」并回写。
 - P0.5 剩余 Task 5–8 继续按计划推进。
