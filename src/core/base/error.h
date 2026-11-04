@@ -81,4 +81,21 @@ private:
     Error error_{};
 };
 
+// Void specialization: success carries no value, mirroring Status.
+template <>
+class Result<void> {
+public:
+    Result() = default;
+    Result(Error error) : error_(std::move(error)) {}
+
+    bool has_value() const { return !error_.has_value(); }
+    explicit operator bool() const { return has_value(); }
+
+    Error& error() { return *error_; }
+    const Error& error() const { return *error_; }
+
+private:
+    std::optional<Error> error_;
+};
+
 }  // namespace ie

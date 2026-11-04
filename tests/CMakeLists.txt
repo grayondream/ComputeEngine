@@ -16,6 +16,7 @@ add_executable(ie_tests
     interface/llm_contract_test.cpp
     interface/training_contract_test.cpp
     interface/validation_contract_test.cpp
+    interface/converter_contract_test.cpp
 )
 target_link_libraries(ie_tests PRIVATE ie_cpu GTest::gtest_main)
 include(GoogleTest)
