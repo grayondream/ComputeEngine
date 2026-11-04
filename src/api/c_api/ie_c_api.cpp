@@ -20,6 +20,12 @@ IE_API ie::Backend* ie_create_backend(const char* kind, const char* config) {
     return backend;
 }
 
-IE_API void ie_destroy_backend(ie::Backend* backend) { delete backend; }
+IE_API void ie_destroy_backend(ie::Backend* backend) {
+    if (backend == nullptr) {
+        return;
+    }
+    backend->shutdown();
+    delete backend;
+}
 
 IE_API const char* ie_api_version() { return ie::kApiVersionString; }

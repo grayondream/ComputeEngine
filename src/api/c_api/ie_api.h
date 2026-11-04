@@ -22,6 +22,8 @@ static_assert(IE_API_VERSION_MAJOR == kApiVersionMajor,
               "C ABI major version must match kApiVersionMajor");
 static_assert(IE_API_VERSION_MINOR == kApiVersionMinor,
               "C ABI minor version must match kApiVersionMinor");
+static_assert(kApiVersion == kApiVersionString,
+              "kApiVersion and kApiVersionString must match");
 
 }  // namespace detail
 }  // namespace ie
