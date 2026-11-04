@@ -42,5 +42,15 @@
 - ASan/UBSan 构建 49/49 通过。
 - 已回写 `p0-mvp.md` §8 与 `00-overview/decisions-log.md`。
 
+### 2026-11-04 · P0.5 接口冻结(进行中)
+- Task 1 配置/特性门控/API 版本已完成(提交 `21dfa9a`)。
+- Task 2 编译层与调优接口完成(提交 `a036089`):
+  - 新增 `core/ir/pass.h`、`pass_manager.h`、`pass_registry.h`、`pass_plugin.h`。
+  - 新增 `core/tuning/kernel.h`、`runtime_autotuner.h`、`hardware_aware_cache.h`、`runtime_hardware_profiler.h`。
+  - `KernelVariant` 升级为设计 §6.2(`name/target_kind/req/cost`),`KernelVariantRegistry::select` 按能力位/阈值/`ModelKind` 过滤。
+  - 未实现调优接口统一返回 `Error::unsupported(...)`;profiler `replan` 返回 `reason="runtime-profiler-stub"`。
+  - 新增 `tests/interface/compiler_tuning_contract_test.cpp`;`ctest` 62/62 通过。
+
 ## 待办(后续)
 - 按里程碑顺序实现,每份 Spec 的 DoD 作验收;实现时裁决各「决策点」并回写。
+- P0.5 剩余 Task 3–8 继续按计划推进。
