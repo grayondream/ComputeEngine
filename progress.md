@@ -62,6 +62,12 @@
   - `RuleEngine` 保存 facts/rules/trace;`fire()` 返回 `Error::unsupported("rule engine not implemented in P0.5")`。
   - 新增 `ops/rule/rule_ops.h`:`RuleMatchOp`/`RuleFireOp`/`FactAssertOp` 均继承 `Op`,`forward` 返回 `Unsupported`。
   - 新增 `tests/interface/rules_contract_test.cpp`;`ctest` 77/77 通过。
+- Task 8 校验与调试层完成(提交 `815dfd3`):
+  - 新增 `validation/reference_tracer/trace_ir.h`(`ModelMeta`/`TraceIR`)与 `reference_tracer.h`。
+  - 新增 `validation/tensor_hash/tensor_hash.h`(`TensorHasher`/`HashManifest`/`VerifyResult`)、`determinism/determinism.h`、`comparator/comparator.h`、`cross_framework/cross_framework.h`、`report/report.h`。
+  - 新增 `validation/config.h`(`ValidationConfig` §10.7 全字段,`enabled=false`);`engine_config.h` 删除旧内联定义并 include 新头文件,`EngineConfig::validation` 字段名不变。
+  - 所有未实现接口统一返回 `Error::unsupported("... not implemented in P0.5")`;头文件通过 `-Wall -Wextra -Wpedantic -Werror` 独立编译检查。
+  - 新增 `tests/interface/validation_contract_test.cpp`;`ctest` 94/94 通过。
 
 ## 待办(后续)
 - 按里程碑顺序实现,每份 Spec 的 DoD 作验收;实现时裁决各「决策点」并回写。
