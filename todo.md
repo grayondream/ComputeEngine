@@ -40,7 +40,7 @@
 - [x] Task 10 C ABI、支撑层、接口清单与文档回写(`fa46124`)
 - [x] 关键模块:feature flags/API 版本、pass/tuning、runtime/transfer/hybrid、rules、四族 ops、LLM、training、validation、converter/quant、C ABI、security/fault/observability/tools/sdk/packaging/benchmarks
 - [x] 接口清单:`docs/superpowers/specs/m1-bootstrap/p0.5-interface-inventory.md`(79 个头文件 / 10 个契约组 / 冻结版本 `0.1`)
-- [x] 验证:Debug **106/106**、Release **106/106** `ctest` 通过;`ie_demo` 仍输出 `result: 15, 21, 27`;P0-MVP 回归通过
+- [x] 验证:Debug **116/116**、Release **116/116** `ctest` 通过;`ie_demo` 仍输出 `result: 15, 21, 27`;P0-MVP 回归通过
 - [x] 回写 `p0.5-interface-freeze.md` §8 与 `decisions-log.md` 实现期裁定
 - [x] 重点复核已裁定:不引入 MLIR(自定义 `Graph::bind`)、插件 ABI 提前锁定 `0.1`、JSON 延后、`KernelVariant` 对齐 §6.2、`Status` 为规范 void 结果
 - [x] 整分支复审修复:门控权威性、transfer/copy 语义、Sandbox、C ABI nothrow、转换/校验表驱动 DoD #1 覆盖、inventory 总数与文档同步

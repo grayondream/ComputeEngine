@@ -79,10 +79,10 @@
 - Task 10 C ABI、支撑层与文档回写完成(提交 `fa46124`):
   - 新增 `api/c_api/ie_api.h`(`IE_API_VERSION_MAJOR=0`/`MINOR=1`、`IE_API`、三个 `extern "C"` 函数)与 `ie_c_api.cpp`;`ie_create_backend` 仅识别 `"cpu"`,`ie_destroy_backend(nullptr)` 安全,`ie_api_version()` 恒为 `"0.1"`;`.cpp` 已加入 `ie_cpu`。
   - `plugin_api.h` 增加 `kApiVersionString`;`ie_api.h` 用 `static_assert` 锁定宏与 C++ 常量一致。
-  - 新增 `api/openai_compat`、`api/grpc`、`api/cli`、`security`、`fault_tolerance`、`observability`、`tools`、`sdk`、`packaging`、`benchmarks` 支撑层接口;`AuditLog::record/entries` 内存留存,安全/容错/可观测等生命周期方法返回 `{}`/空,功能方法返回 `Unsupported`;`OpenAIServer`/`GrpcService`/`CliApp` 的 `start/run/stop` 均返回 `Unsupported`。
+  - 新增 `api/openai_compat`、`api/grpc`、`api/cli`、`security`、`fault_tolerance`、`observability`、`tools`、`sdk`、`packaging`、`benchmarks` 支撑层接口;`AuditLog::record/entries` 内存留存,安全/容错/可观测等生命周期方法返回 `{}`/空（`Sandbox` 生命周期除外，统一返回 `Unsupported`）,功能方法返回 `Unsupported`;`OpenAIServer`/`GrpcService`/`CliApp` 的 `start/run/stop` 均返回 `Unsupported`。
   - 新增 `docs/superpowers/specs/m1-bootstrap/p0.5-interface-inventory.md`(79 个头文件 / 10 个契约组);回写 `p0.5-interface-freeze.md` §8 与 `decisions-log.md`。
   - 新增 `tests/interface/api_support_contract_test.cpp`(8 项)与 `inventory_test.cpp`(1 项)。
-- 最终验证:Debug **106/106**、Release **106/106** `ctest` 通过;`./build/ie_demo` 仍输出 `result: 15, 21, 27`;P0-MVP 既有 e2e/49 项基线回归通过。
+- 最终验证:Debug **116/116**、Release **116/116**、ASan/UBSan **116/116** `ctest` 通过;`./build/ie_demo` 仍输出 `result: 15, 21, 27`;P0-MVP 既有 e2e/49 项基线回归通过。
 - 实现期裁定:不引入 MLIR(自定义 `Graph::bind`)、插件 ABI 提前锁定 `0.1`、JSON 延后、`KernelVariant` 对齐 §6.2、`FeatureFlags` 位于 `core/config`、`HybridConfig`/`ValidationConfig` 独立头文件、`Status` 为规范 void 结果。
 - 整分支复审最终修复:
   - `FeatureFlags` 明确为唯一权威全局门控,legacy bools 与 `hardware_adapt`/`validation` 开关仅作镜像/收窄;新增默认镜像一致性测试。
