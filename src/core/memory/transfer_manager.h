@@ -1,23 +1,72 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
+#include <cstring>
+#include <functional>
+#include <map>
+#include <utility>
 
 #include "core/base/error.h"
 #include "core/base/types.h"
 #include "core/memory/allocator.h"
+#include "core/runtime/stream.h"
 
 namespace ie {
 
-// P0 skeleton: only same-device copies are accepted.
+// Cross-device transfer surface (docs/readme.md §7.5). Routes may be
+// registered per (source, destination) device pair; unregistered same-device
+// transfers fall back to memcpy, cross-device transfers are Unsupported.
 class TransferManager {
 public:
-    Status copy(Device src, Device dst, BufferHandle /*src_handle*/,
-                std::size_t /*bytes*/) {
-        if (src == dst) {
+    using TransferHandle = std::uint64_t;
+    using TransferFn = std::function<Status(BufferHandle, Device, BufferHandle,
+                                            Device, std::size_t)>;
+
+    void register_route(Device from, Device to, TransferFn fn) {
+        routes_[std::make_pair(from, to)] = std::move(fn);
+    }
+
+    Status transfer(BufferHandle dst, Device dst_dev, BufferHandle src,
+                    Device src_dev, std::size_t bytes) {
+        auto it = routes_.find(std::make_pair(src_dev, dst_dev));
+        if (it != routes_.end()) {
+            if (!it->second) {
+                return Error::unsupported("empty transfer route");
+            }
+            return it->second(dst, dst_dev, src, src_dev, bytes);
+        }
+        if (src_dev == dst_dev) {
+            if (bytes == 0 || dst == src) {
+                return {};
+            }
+            if (dst == nullptr || src == nullptr) {
+                return Error::invalid_argument(
+                    "null buffer for same-device transfer");
+            }
+            std::memcpy(dst, src, bytes);
             return {};
         }
-        return Error::unsupported("cross-device copy not implemented in P0");
+        return Error::unsupported(
+            "cross-device transfer not implemented in P0.5");
     }
+
+    Status prefetch_async(BufferHandle, const void*, Stream, std::size_t) {
+        return Error::unsupported("prefetch_async not implemented in P0.5");
+    }
+
+    Status wait(TransferHandle) {
+        return Error::unsupported("transfer wait not implemented in P0.5");
+    }
+
+    // P0 compatibility entry point: same-device copies still succeed.
+    Status copy(Device src, Device dst, BufferHandle src_handle,
+                std::size_t bytes) {
+        return transfer(src_handle, dst, src_handle, src, bytes);
+    }
+
+private:
+    std::map<std::pair<Device, Device>, TransferFn> routes_;
 };
 
 }  // namespace ie

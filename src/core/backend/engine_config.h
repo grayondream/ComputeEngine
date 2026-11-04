@@ -5,15 +5,11 @@
 #include "core/base/error.h"
 #include "core/config/feature_flags.h"
 #include "core/ir/model_kind.h"
+#include "hybrid/hybrid_config.h"
 
 namespace ie {
 
 enum class GpuBackend { NONE, CUDA, VULKAN };
-
-struct HybridConfig {
-    bool enable_hybrid{false};
-    int gpu_layers{0};
-};
 
 struct ValidationConfig {
     bool enable{false};

@@ -10,6 +10,7 @@ add_executable(ie_tests
     plugin/plugin_test.cpp
     interface/config_contract_test.cpp
     interface/compiler_tuning_contract_test.cpp
+    interface/hybrid_runtime_contract_test.cpp
 )
 target_link_libraries(ie_tests PRIVATE ie_cpu GTest::gtest_main)
 include(GoogleTest)
