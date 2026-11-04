@@ -11,6 +11,8 @@ namespace ie {
 inline constexpr int kApiVersionMajor = 0;
 inline constexpr int kApiVersionMinor = 1;
 inline constexpr std::string_view kApiVersion = "0.1";
+// Null-terminated companion used by the C ABI (`ie_api_version`).
+inline constexpr char kApiVersionString[] = "0.1";
 
 namespace detail {
 

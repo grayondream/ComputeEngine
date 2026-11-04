@@ -20,6 +20,7 @@ add_library(ie_core STATIC
 add_library(ie_cpu STATIC
     src/backends/cpu/cpu_backend.cpp
     src/core/runtime/engine.cpp
+    src/api/c_api/ie_c_api.cpp
 )
 target_link_libraries(ie_cpu PUBLIC ie_core)
 target_compile_options(ie_cpu PRIVATE -Wall -Wextra -Wpedantic)

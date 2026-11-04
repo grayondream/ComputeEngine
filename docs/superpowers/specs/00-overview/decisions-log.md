@@ -19,11 +19,16 @@
 | `Backend::device()` | 返回 `Device` 值 | 避让同名 `enum class Device` | ✅ |
 | `Graph::backward_graph` | `std::shared_ptr<Graph>` | 递归 `optional` 不可编译 | ✅ |
 
-## P0.5 · 接口冻结(来源 `p0.5-interface-freeze.md`)
-| 决策点 | 默认建议 | 副作用/备注 | 状态 |
+## P0.5 · 接口冻结(来源 `p0.5-interface-freeze.md`)✅ 已实现期裁定
+| 决策点 | 裁定 | 副作用/备注 | 状态 |
 |---|---|---|---|
-| `Graph::bind` 动态绑定 | 对齐 MLIR 动态 shape | 与 MLIR 决策联动 | ⏳ |
-| 插件 ABI 边界 | 提前锁定 C ABI + 语义版本(§12.4) | 降低 P17 返工 | ⏳ |
+| `Graph::bind` 动态绑定 | **不引入 MLIR**;保留自定义 `Graph::bind(ShapeMap) -> Result<BoundGraph>` | 动态维度用 `Graph::DynamicDim`;静态绑定用 `BoundGraph::shapes`;后续可增量接 Dialect | ✅ |
+| 插件 ABI 边界 | **提前锁定 `0.1`** | C ABI 三函数 + `IE_API_VERSION_MAJOR=0/MINOR=1`;`is_api_compatible` major 相等、minor ≤ 当前;P17 只补加载器 | ✅ |
+| IR 序列化 | **JSON 延后** | P0.5 不引入 JSON 库;Graph/Metrics/Experiment 导出返回 `Unsupported`,留待 P15/P16 | ✅ |
+| `KernelVariant` 结构 | **升级到设计 §6.2** | `name/target_kind/req/cost`,`Requirements` 7 字段、`CostModel` 3 字段;registry 按能力/ρ/阈值过滤 | ✅ |
+| `FeatureFlags` 位置 | **`src/core/config/feature_flags.h`** | 提供 `global_feature_flags()`;`EngineConfig::features`、`Experiment::Config::features` 传递 | ✅ |
+| `HybridConfig` / `ValidationConfig` 位置 | **独立头文件** | 分别移到 `hybrid/hybrid_config.h` 与 `validation/config.h`,`EngineConfig` 字段名不变 | ✅ |
+| 无返回值结果类型 | **`Status` 为规范 void 结果** | 设计中的 `Result<void>` 统一映射为 `Status`;不新增 `Result<void>` 特化 | ✅ |
 
 ## P1 · CPU/硬件探测(来源 `p1-cpu-hardware.md`)
 | 决策点 | 默认建议 | 副作用/备注 | 状态 |
