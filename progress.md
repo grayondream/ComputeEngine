@@ -104,6 +104,7 @@
 - `ThreadPool`:构造 `max(1, threads)` 逻辑线程,`threads<=1` 不启动 worker 且 `parallel_for` 在调用线程执行 `fn(0,total)`;多线程用原子 chunk 索引按 `grain` 切分,worker 与调用线程共同消费,互不重叠;`active_` + condition_variable 等待本轮完成;析构置停止位并 join;构造期线程创建失败时先 join 已创建线程再重抛。
 - 明确裁定:`parallel_for` 非重入(任务内不得再次调用同一 pool),并发调用由内部 mutex 串行化。
 - 验证:新增 4 项测试(Debug),全量 **123/123** `ctest` 通过,`-Wall -Wextra -Wpedantic` 无警告;额外用 TSan(200 轮多线程压力)与 ASan/UBSan(分配器/线程池)本地验证通过。
+- 复审修复 round 1(`9cba3f2`):调用线程任务抛异常时先等待本轮 `active_==0`、清空 `job_` 再重抛,避免 worker 引用已销毁任务;头文件明确任务体不得抛出(worker 内异常调用 `std::terminate`)。补齐 `total==0`、`grain==0`/超大 grain、连续两轮 `parallel_for`、区间合法性测试;全量 **126/126** 通过。
 
 ## 待办(后续)
 - 按里程碑顺序实现,每份 Spec 的 DoD 作验收;实现时裁决各「决策点」并回写。
