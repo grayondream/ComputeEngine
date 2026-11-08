@@ -6,6 +6,8 @@
 #include "core/ops/common/add_op.h"
 #include "core/ops/common/matmul_op.h"
 #include "core/ops/common/mul_op.h"
+#include "core/ops/common/relu_op.h"
+#include "core/ops/common/softmax_op.h"
 #include "core/ops/op_registry.h"
 
 using namespace ie;
@@ -17,6 +19,18 @@ TEST(OpRegistryTest, RegisterCreateAndLookup) {
     ASSERT_TRUE(op.has_value());
     EXPECT_NE(dynamic_cast<AddOp*>(op->get()), nullptr);
     EXPECT_FALSE(reg.list_by_kind(ModelKind::TRADITIONAL).empty());
+}
+
+TEST(OpRegistryTest, RegistersActivationOpsIdempotently) {
+    auto& reg = OpRegistry::instance();
+    register_builtin_ops(reg);
+    register_builtin_ops(reg);
+    auto relu = reg.create(OpType::Relu);
+    ASSERT_TRUE(relu.has_value());
+    EXPECT_NE(dynamic_cast<ReluOp*>(relu->get()), nullptr);
+    auto softmax = reg.create(OpType::Softmax);
+    ASSERT_TRUE(softmax.has_value());
+    EXPECT_NE(dynamic_cast<SoftmaxOp*>(softmax->get()), nullptr);
 }
 
 TEST(OpRegistryTest, UnknownOpReturnsNotFound) {

@@ -10,7 +10,8 @@ namespace ie {
 Result<std::vector<Tensor>> Executor::run(
     const Graph& graph,
     const std::unordered_map<std::string, Tensor>& inputs,
-    std::shared_ptr<Allocator> allocator) {
+    std::shared_ptr<Allocator> allocator, const KernelFns* kernels,
+    ThreadPool* pool) {
     if (!allocator) {
         return Error::invalid_argument("executor requires an allocator");
     }
@@ -35,6 +36,8 @@ Result<std::vector<Tensor>> Executor::run(
 
     ExecutionContext context;
     context.allocator = std::move(allocator);
+    context.kernels = kernels;
+    context.thread_pool = pool;
 
     for (const Node& node : graph.nodes) {
         auto op = registry_.create(node.op);

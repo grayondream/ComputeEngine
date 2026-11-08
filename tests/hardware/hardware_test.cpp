@@ -36,6 +36,39 @@ TEST(OptimizationPlannerTest, ReturnsConservativePlan) {
     EXPECT_FALSE(plan.reason.empty());
 }
 
+TEST(OptimizationPlannerTest, SelectsKernelsFromCaps) {
+    EngineConfig cfg;
+    Graph g;
+    HardwareProfile scalar;
+    auto p0 = OptimizationPlanner::plan(scalar, g, ModelKind::UNKNOWN, cfg);
+    ASSERT_EQ(p0.preferred_kernels.size(), 3u);
+    EXPECT_EQ(p0.preferred_kernels[0], "matmul_scalar");
+    EXPECT_EQ(p0.preferred_kernels[1], "relu_scalar");
+    EXPECT_EQ(p0.preferred_kernels[2], "softmax_scalar");
+    EXPECT_EQ(p0.reason.rfind("capability-driven:", 0), 0u);
+
+    HardwareProfile avx2;
+    avx2.caps.set("avx2", true);
+    avx2.caps.set("fma", true);
+    auto p2 = OptimizationPlanner::plan(avx2, g, ModelKind::UNKNOWN, cfg);
+    ASSERT_EQ(p2.preferred_kernels.size(), 3u);
+    EXPECT_EQ(p2.preferred_kernels[0], "matmul_avx2");
+    EXPECT_EQ(p2.preferred_kernels[1], "relu_avx2");
+    EXPECT_EQ(p2.preferred_kernels[2], "softmax_avx2");
+
+    HardwareProfile avx512;
+    avx512.caps.set("avx2", true);
+    avx512.caps.set("fma", true);
+    avx512.caps.set("avx512f", true);
+    avx512.caps.set("avx512bw", true);
+    avx512.caps.set("avx512vl", true);
+    auto p5 = OptimizationPlanner::plan(avx512, g, ModelKind::UNKNOWN, cfg);
+    ASSERT_EQ(p5.preferred_kernels.size(), 3u);
+    EXPECT_EQ(p5.preferred_kernels[0], "matmul_avx512");
+    EXPECT_EQ(p5.preferred_kernels[1], "relu_avx512");
+    EXPECT_EQ(p5.preferred_kernels[2], "softmax_avx512");
+}
+
 TEST(CpuProfileBuildTest, MirrorsFeaturesAndTopology) {
     CpuFeatures f;
     f.sse2 = f.avx = f.avx2 = f.fma = true;

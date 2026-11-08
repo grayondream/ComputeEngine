@@ -13,6 +13,9 @@
 
 namespace ie {
 
+struct KernelFns;
+class ThreadPool;
+
 class Executor {
 public:
     explicit Executor(OpRegistry& registry = OpRegistry::instance())
@@ -23,7 +26,8 @@ public:
     Result<std::vector<Tensor>> run(
         const Graph& graph,
         const std::unordered_map<std::string, Tensor>& inputs,
-        std::shared_ptr<Allocator> allocator);
+        std::shared_ptr<Allocator> allocator,
+        const KernelFns* kernels = nullptr, ThreadPool* pool = nullptr);
 
 private:
     OpRegistry& registry_;

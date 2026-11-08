@@ -3,6 +3,8 @@
 #include "core/ops/common/add_op.h"
 #include "core/ops/common/matmul_op.h"
 #include "core/ops/common/mul_op.h"
+#include "core/ops/common/relu_op.h"
+#include "core/ops/common/softmax_op.h"
 
 namespace ie {
 
@@ -60,6 +62,10 @@ void register_builtin_ops(OpRegistry& registry) {
         OpType::Mul, [] { return std::make_unique<MulOp>(); }));
     ignore_exists(registry.register_op(
         OpType::MatMul, [] { return std::make_unique<MatMulOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::Relu, [] { return std::make_unique<ReluOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::Softmax, [] { return std::make_unique<SoftmaxOp>(); }));
 }
 
 }  // namespace ie
