@@ -4,14 +4,21 @@
 #include <optional>
 
 #include "core/backend/backend.h"
+#include "core/hardware/profile.h"
 #include "core/ir/graph.h"
-#include "core/memory/malloc_allocator.h"
+#include "core/ops/kernel_fns.h"
 
 namespace ie {
 
-// Synchronous P0 CPU backend.
+class CpuAllocator;
+class ThreadPool;
+
+// CPU backend: capability-driven kernels executed on a deterministic pool.
 class CpuBackend final : public Backend {
 public:
+    CpuBackend();
+    ~CpuBackend() override;
+
     Status init() override;
     Status shutdown() override;
     Device device() const override;
@@ -38,8 +45,11 @@ public:
     Result<MemoryPolicy> memory_policy() const override;
 
 private:
-    std::shared_ptr<MallocAllocator> allocator_{
-        std::make_shared<MallocAllocator>()};
+    HardwareProfile profile_;
+    std::unique_ptr<ThreadPool> pool_;
+    std::shared_ptr<CpuAllocator> allocator_;
+    KernelFns kernels_;
+    bool initialized_{false};
     std::optional<Graph> graph_;
 };
 

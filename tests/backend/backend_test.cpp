@@ -1,5 +1,8 @@
 #include <gtest/gtest.h>
 
+#include <cstdint>
+
+#include "backends/cpu/cpu_backend.h"
 #include "core/backend/backend_matrix.h"
 #include "core/backend/backend_registry.h"
 #include "core/backend/device_selector.h"
@@ -51,4 +54,29 @@ TEST(EngineConfigTest, RejectsEmptyDeviceSet) {
 TEST(BackendMatrixTest, DefaultsToUnsupported) {
     BackendMatrix m;
     EXPECT_FALSE(m.supports(BackendKind::CPU, OpType::Add));
+}
+
+TEST(CpuBackendTest, InitDetectsProfileAndIsIdempotent) {
+    CpuBackend backend;
+    ASSERT_TRUE(backend.init().has_value());
+    ASSERT_TRUE(backend.init().has_value());
+    auto profile = backend.hardware_profile();
+    ASSERT_TRUE(profile.has_value());
+    EXPECT_GT(profile->cu.num_cores, 0);
+    auto caps = backend.caps();
+    EXPECT_TRUE(caps.supports_deterministic_kernels);
+    EXPECT_TRUE(caps.supports_batch_invariant);
+    ASSERT_TRUE(backend.shutdown().has_value());
+    ASSERT_TRUE(backend.shutdown().has_value());
+}
+
+TEST(CpuBackendTest, AllocIsAlignedAndFreeIsSafe) {
+    CpuBackend backend;
+    ASSERT_TRUE(backend.init().has_value());
+    auto ptr = backend.alloc(65);
+    ASSERT_TRUE(ptr.has_value());
+    EXPECT_EQ(reinterpret_cast<std::uintptr_t>(*ptr) % 64, 0u);
+    backend.free(*ptr);
+    backend.free(*ptr);
+    backend.free(nullptr);
 }
