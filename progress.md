@@ -143,3 +143,23 @@
 - 验证:TDD RED(缺失 `data/mlp_reference.h`;生成后暴露 `MatMul inner dimensions mismatch`)→ GREEN;Engine 路径最大误差 `8.94e-08`,标量路径 `5.96e-08`(容差 `1e-5`);Debug **150/150**(性能用例 skip)、Release **150/150**(AVX2 性能断言通过)。
 - `ie_bench`(Ryzen 5 5600X,选中 `matmul_avx2`):64³ / 128³ / 256³ 标量 3.58/1.75/1.62 GFLOPS,选中 23.27/13.39/11.97 GFLOPS;本机无 AVX-512,相关分支仅编译未执行。
 - 复审修复(`21ca813`):`CpuBackend::graph_` 由 `std::optional<Graph>` 改为 `std::unique_ptr<Graph>`,消除 GCC 15 在 `std::optional<Graph>` 析构 `shared_ptr<Graph>` 时的 `-Wmaybe-uninitialized`;补齐性能测试 `<cstdint>` 与 `api_support_contract_test` 的聚合初始化,强制 `-Wall -Wextra -Wpedantic` 的全目标 Release 构建零告警;聚焦 5 项、Debug/Release 全量 **150/150** 通过。
+
+### 2026-11-08 · P1 Task 7 决策回写、接口增补与最终验证 ✅
+- 提交范围:`7ce453c..56ac645`(Task 1–6 共 19 个提交);Task 7 为本次文档提交。
+- 文档回写:
+  - `docs/superpowers/specs/m2-backend-core/p1-cpu-hardware.md` 追加「§9 实现期裁定」:不引入 Google Benchmark、函数级 target + 能力位分派、AVX-512 主机 skip、偏置折叠齐次坐标、PyTorch 黄金数据离线、持久线程池/固定归约、`CpuAllocator` 64B 对齐且保留 `MallocAllocator`、规范能力位名、VNNI/AMX 仅登记、cost model 按 `estimated_tflops`;并专节记录 17/9 维度修正与 Release `-Wmaybe-uninitialized`(`graph_` 改 `unique_ptr`)。
+  - `docs/superpowers/specs/00-overview/decisions-log.md`:P1 能力位深度、cost model 标记 ✅,新增「基准框架:不引入 Google Benchmark,仓库内 `ie_bench`」✅。
+  - `docs/superpowers/specs/m1-bootstrap/p0.5-interface-inventory.md`:追加 8 个 P1 增量公开头文件(`kernel_fns.h`、`thread_pool.h`、`cpu_allocator.h`、`relu_op.h`、`softmax_op.h`、`cpu_kernel_variants.h`、`cpu_kernel_catalog.h`、`simd_kernels.h`);纯增量,不改变冻结的 79 头文件/10 契约组与插件 ABI `0.1`。
+- 最终验证(全部重新配置并 `--clean-first`/全新构建目录):
+  - Debug:`cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Debug` + 构建 + `ctest` → **150/150** 通过;`MatMulBenchmarkSanity` 按设计跳过;构建 0 告警。
+  - Release:`cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-Wall -Wextra -Wpedantic"` + 构建 + `ctest` → **150/150** 通过(含性能 sanity);全目标 **0 warning**。
+  - ASan/UBSan:全新 `build-asan`(`-fsanitize=address,undefined -fno-omit-frame-pointer`),`ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 ctest` → **150/150** 通过(性能用例 skip);构建 0 告警。
+  - `./build/ie_demo` 输出仍为 `result: 15, 21, 27`(前有指纹与 `AVX2: 1` / `AVX-512 VNNI: 0`)。
+  - `./build-release/ie_bench`:profile `AMD Ryzen 5 5600X 6-Core Processor`,选中 `matmul_avx2`/`relu_avx2`/`softmax_avx2`;64³ **3.66→23.28**、128³ **1.73→13.58**、256³ **1.59→11.71** GFLOPS。
+  - MLP 对 PyTorch(沿用 Task 6 黄金数据):Engine 最大误差 **8.94e-08**、标量 Executor **5.96e-08**(容差 `1e-5`)。
+- 已知限制/延后:
+  - 本机(Zen3)无 AVX-512,AVX-512 数值与吞吐未真机执行;仅编译并通过合成 profile 的分派/目录测试,待 AVX-512 机器补跑。
+  - `softmax_sse2` 变体映射到标量 softmax(P1 未单独实现 SSE2 softmax)。
+  - ReLU/Softmax 未并行化;仅 MatMul 在 `m*n*k >= 32768` 时按行并行(线程数与串行结果逐字节一致)。
+  - VNNI/AMX/BF16/FP16 仅登记能力位,无 F32 内核;INT8/BF16 内核留待 dtype 里程碑;cost model 固定 1/2/4/8,实测微调留 P7。
+  - `ThreadPool::parallel_for` 非重入;ARM 探测分支在 x86 主机仅编译未执行。

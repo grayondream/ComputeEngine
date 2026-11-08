@@ -30,11 +30,12 @@
 | `HybridConfig` / `ValidationConfig` 位置 | **独立头文件** | 分别移到 `hybrid/hybrid_config.h` 与 `validation/config.h`,`EngineConfig` 字段名不变 | ✅ |
 | 无返回值结果类型 | **`Status` 为规范 void 结果** | 设计中的 `Result<void>` 统一映射为 `Status`;不新增 `Result<void>` 特化 | ✅ |
 
-## P1 · CPU/硬件探测(来源 `p1-cpu-hardware.md`)
-| 决策点 | 默认建议 | 副作用/备注 | 状态 |
+## P1 · CPU/硬件探测(来源 `p1-cpu-hardware.md`)✅ 已实现期裁定
+| 决策点 | 裁定 | 副作用/备注 | 状态 |
 |---|---|---|---|
-| CPU 能力位探测深度 | x86 全量 + ARM 基础(NEON;SVE/SME 接口占位) | AMX 走 CPUID leaf7 | ⏳ |
-| Cost model 首版 | 保守启发式(能力位优先+阈值);实测微调留 P7 | | ⏳ |
+| 基准框架 | **不引入 Google Benchmark**;仓库内 `ie_bench`(`std::chrono`)+ Release 性能 sanity | `MatMulBenchmarkSanity` 仅 Release 运行;Debug skip;不增依赖 | ✅ |
+| CPU 能力位探测深度 | **x86 全量 + ARM 基础** | x86:SSE2/AVX/AVX2/AVX-512F+BW+VL/VNNI/BF16/FP16 + AMX(CPUID leaf7/1);ARM:NEON/SVE/SVE2/SME/SME2(`getauxval`);规范名 `avx512vnni`/`avx512bf16`/`amx-*`;P1 仅登记 VNNI/AMX,无 F32 内核 | ✅ |
+| Cost model 首版 | **`estimated_tflops` 优先级(1/2/4/8)** | `select_best_cpu_variant` 取最高档;不做实测标定,微调留 P7 | ✅ |
 
 ## P2 · 传统模型链路(来源 `p2-traditional-models.md`)
 | 决策点 | 默认建议 | 副作用/备注 | 状态 |

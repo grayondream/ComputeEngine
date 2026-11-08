@@ -45,14 +45,20 @@
 - [x] 重点复核已裁定:不引入 MLIR(自定义 `Graph::bind`)、插件 ABI 提前锁定 `0.1`、JSON 延后、`KernelVariant` 对齐 §6.2、`Status` 为规范 void 结果
 - [x] 整分支复审修复:门控权威性、transfer/copy 语义、Sandbox、C ABI nothrow、转换/校验表驱动 DoD #1 覆盖、inventory 总数与文档同步
 
-## P1 CPU 硬件(进行中)
+## P1 CPU 硬件(2026-11-08 完成 ✅)
 - [x] Task 1 硬件探测平台化(`7ce453c`):`CpuFeatures`/`CpuTopology`/`build_cpu_profile`、x86 CPUID + `__builtin_cpu_supports`、ARM `getauxval`、Linux 拓扑探测、fingerprint 扩展
 - [x] Task 2 CPU 分配器与确定性线程池(`ace983f`):`CpuAllocator`(64B 对齐、64 倍数统计、重复释放安全)、`ThreadPool`(确定性 chunk 分配、`threads<=1` 调用线程内联、非重入)
 - [x] Task 3 SIMD 内核与能力目录(`3165aab`):`KernelFns`、12 个 CPU 变体(3 op × 4 档)、标量/SSE2/AVX2/AVX-512 内核、`CpuKernelCatalog::select`;复审补测(`11ebcd6`)覆盖 ReLU/Softmax 向量循环与 2-D softmax
 - [x] Task 4 ReLU/Softmax 算子与 MatMul 分派(`7cd5a6f`):`ReluOp`/`SoftmaxOp`(1D/2D 稳定 softmax)、`ExecutionContext` 注入 `KernelFns*`/`ThreadPool*`、`Executor::run` 默认参数、MatMul 按行并行(阈值 32768)、`OptimizationPlanner` 能力驱动首选内核
 - [x] Task 5 CpuBackend 集成(`9a413fc`):`CpuBackend` 持有 profile/线程池/`CpuAllocator`/`KernelFns`;`init` 幂等探测与选核、线程数钳制 `[1,64]`;`shutdown` 先释放池再清图;`caps` 置确定性/批次不变标志;`execute_async` 注入 kernels 与 pool
 - [x] Task 6 PyTorch 参考 MLP 与基准(`1fc4402`):`gen_mlp_reference.py` + 提交 `tests/data/mlp_reference.h`;6 节点 MLP(偏置折叠为齐次常量列),Engine/标量 Executor 双路径对齐(最大误差 <1e-7);Release AVX2 性能 sanity + `ie_bench`(profile/选中变体/GFLOPS);复审修复(`21ca813`)Release 全目标零告警
+- [x] Task 7 决策回写、接口增补与最终验证(本次提交):`p1-cpu-hardware.md` 追加「实现期裁定」(含 17/9 齐次坐标修正与 Release 告警修复);`decisions-log.md` P1 三项 ✅;`p0.5-interface-inventory.md` 追加 8 个 P1 增量头文件;Debug/Release/ASan 全量验证
+- [x] P1 完成汇总(2026-11-08,实际测量):
+  - 测试:Debug **150/150**(性能用例 skip)、Release **150/150**(性能用例运行)、ASan+UBSan **150/150**(性能用例 skip);`-Wall -Wextra -Wpedantic` 全目标构建 **0 告警**
+  - MLP 对 PyTorch:Engine 路径最大误差 **8.94e-08**、标量路径 **5.96e-08**(容差 `1e-5`)
+  - `ie_bench`(Ryzen 5 5600X,选中 `matmul_avx2`):64³ 标量 **3.66** → 选中 **23.28** GFLOPS;128³ **1.73** → **13.58**;256³ **1.59** → **11.71**
+  - AVX-512:本机 Zen3 无 AVX-512,数值/性能用例 skip;内核参与编译,能力位分派用合成 profile 覆盖
 
 ## 后续
 - [ ] 每个里程碑实现时:对照「决策点」节,从默认建议起步,裁定后回写 Spec/台账
-- [ ] P1 起在 P0.5 冻结接口上增量实现 CPU/硬件探测等能力
+- [ ] P2 起在 P0.5 冻结接口上继续增量实现(CPU/硬件探测已在 P1 完成)
