@@ -11,7 +11,9 @@ add_executable(ie_tests
     hardware/cpu_kernel_catalog_test.cpp
     scheduler/scheduler_test.cpp
     runtime/engine_e2e_test.cpp
+    runtime/mlp_e2e_test.cpp
     runtime/thread_pool_test.cpp
+    performance/matmul_benchmark_test.cpp
     plugin/plugin_test.cpp
     interface/config_contract_test.cpp
     interface/compiler_tuning_contract_test.cpp
@@ -26,5 +28,6 @@ add_executable(ie_tests
     interface/inventory_test.cpp
 )
 target_link_libraries(ie_tests PRIVATE ie_cpu GTest::gtest_main)
+target_include_directories(ie_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 include(GoogleTest)
 gtest_discover_tests(ie_tests)
