@@ -98,6 +98,13 @@
 - 验证:新增 3 项测试(Debug)后全量 **119/119** `ctest` 通过,编译无警告。
 - 初审修复:修正 aarch64 NEON 为 `HWCAP_ASIMD`(bit 1)并优先使用 `<asm/hwcap.h>` 常量;ARM 探测分支限定 `__linux__`,非 Linux ARM 回退全 false;测试补充 FMA cap 与 `matrix_unit_generation` 断言。
 
+### 2026-11-08 · P1 Task 2 CPU 分配器与确定性线程池 ✅
+- 提交 `ace983f`;新增 `src/backends/cpu/cpu_allocator.h`(header-only)与 `src/core/runtime/thread_pool.h/.cpp`。
+- `CpuAllocator`:`posix_memalign`(Windows `_aligned_malloc`)提供 64B 对齐;按 64 倍数向上取整统计 `outstanding_bytes`;mutex + `unordered_map` 跟踪;`alloc(0)` 返回 `InvalidArgument`;`free(nullptr)` 与重复释放安全;`available` 返回 `SIZE_MAX`。
+- `ThreadPool`:构造 `max(1, threads)` 逻辑线程,`threads<=1` 不启动 worker 且 `parallel_for` 在调用线程执行 `fn(0,total)`;多线程用原子 chunk 索引按 `grain` 切分,worker 与调用线程共同消费,互不重叠;`active_` + condition_variable 等待本轮完成;析构置停止位并 join;构造期线程创建失败时先 join 已创建线程再重抛。
+- 明确裁定:`parallel_for` 非重入(任务内不得再次调用同一 pool),并发调用由内部 mutex 串行化。
+- 验证:新增 4 项测试(Debug),全量 **123/123** `ctest` 通过,`-Wall -Wextra -Wpedantic` 无警告;额外用 TSan(200 轮多线程压力)与 ASan/UBSan(分配器/线程池)本地验证通过。
+
 ## 待办(后续)
 - 按里程碑顺序实现,每份 Spec 的 DoD 作验收;实现时裁决各「决策点」并回写。
 - 在 P0.5 冻结接口上增量实现 P1 CPU/硬件探测等能力。

@@ -47,6 +47,7 @@
 
 ## P1 CPU 硬件(进行中)
 - [x] Task 1 硬件探测平台化(`7ce453c`):`CpuFeatures`/`CpuTopology`/`build_cpu_profile`、x86 CPUID + `__builtin_cpu_supports`、ARM `getauxval`、Linux 拓扑探测、fingerprint 扩展
+- [x] Task 2 CPU 分配器与确定性线程池(`ace983f`):`CpuAllocator`(64B 对齐、64 倍数统计、重复释放安全)、`ThreadPool`(确定性 chunk 分配、`threads<=1` 调用线程内联、非重入)
 
 ## 后续
 - [ ] 每个里程碑实现时:对照「决策点」节,从默认建议起步,裁定后回写 Spec/台账
