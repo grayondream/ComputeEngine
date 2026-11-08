@@ -142,4 +142,4 @@
 - 6 节点图(`MatMul/Relu/MatMul/Relu/MatMul/Softmax`),权重为图输入;偏置折叠采用齐次常量列(`W1_aug=[9,17]`、`W2_aug=[17,9]`、`W3_aug=[9,4]`),ReLU 精确保留常量 1;修正了 brief 中 `h1r=[4,16]` 与 `w2=[17,8]` 的内维不一致。
 - 验证:TDD RED(缺失 `data/mlp_reference.h`;生成后暴露 `MatMul inner dimensions mismatch`)→ GREEN;Engine 路径最大误差 `8.94e-08`,标量路径 `5.96e-08`(容差 `1e-5`);Debug **150/150**(性能用例 skip)、Release **150/150**(AVX2 性能断言通过)。
 - `ie_bench`(Ryzen 5 5600X,选中 `matmul_avx2`):64³ / 128³ / 256³ 标量 3.58/1.75/1.62 GFLOPS,选中 23.27/13.39/11.97 GFLOPS;本机无 AVX-512,相关分支仅编译未执行。
-- 已知:Release 干净构建在未修改的 `cpu_backend.cpp` 上出现 GCC 15 `-Wmaybe-uninitialized`(既有告警,Task 6 文件无告警)。
+- 复审修复(`21ca813`):`CpuBackend::graph_` 由 `std::optional<Graph>` 改为 `std::unique_ptr<Graph>`,消除 GCC 15 在 `std::optional<Graph>` 析构 `shared_ptr<Graph>` 时的 `-Wmaybe-uninitialized`;补齐性能测试 `<cstdint>` 与 `api_support_contract_test` 的聚合初始化,强制 `-Wall -Wextra -Wpedantic` 的全目标 Release 构建零告警;聚焦 5 项、Debug/Release 全量 **150/150** 通过。
