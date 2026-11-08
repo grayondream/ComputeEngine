@@ -20,6 +20,8 @@ add_library(ie_core STATIC
 
 add_library(ie_cpu STATIC
     src/backends/cpu/cpu_backend.cpp
+    src/backends/cpu/kernels/cpu_kernel_catalog.cpp
+    src/backends/cpu/simd/simd_kernels.cpp
     src/core/runtime/engine.cpp
     src/api/c_api/ie_c_api.cpp
 )

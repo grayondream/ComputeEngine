@@ -5,7 +5,9 @@ add_executable(ie_tests
     memory/cpu_allocator_test.cpp
     backend/backend_test.cpp
     ops/ops_test.cpp
+    ops/simd_kernels_test.cpp
     hardware/hardware_test.cpp
+    hardware/cpu_kernel_catalog_test.cpp
     scheduler/scheduler_test.cpp
     runtime/engine_e2e_test.cpp
     runtime/thread_pool_test.cpp
