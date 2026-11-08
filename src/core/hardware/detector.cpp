@@ -17,6 +17,9 @@
 
 #if defined(__linux__) && (defined(__aarch64__) || defined(__arm__))
 #include <sys/auxv.h>
+#if __has_include(<asm/hwcap.h>)
+#include <asm/hwcap.h>
+#endif
 #endif
 
 namespace ie {
@@ -265,22 +268,47 @@ CpuFeatures detect_cpu_features() {
     if (amx_tile && __get_cpuid_count(7, 1, &eax, &ebx, &ecx, &edx) != 0) {
         features.amx_fp16 = (eax & (1u << 21)) != 0;
     }
-#elif defined(__aarch64__)
-    constexpr unsigned long kHwcapNeon = 1ul << 12;
+#elif defined(__linux__) && defined(__aarch64__)
+    // On aarch64 NEON is HWCAP_ASIMD (bit 1), not the arm32 HWCAP_NEON bit.
+#ifdef HWCAP_ASIMD
+    constexpr unsigned long kHwcapAsimd = HWCAP_ASIMD;
+#else
+    constexpr unsigned long kHwcapAsimd = 1ul << 1;
+#endif
+#ifdef HWCAP_SVE
+    constexpr unsigned long kHwcapSve = HWCAP_SVE;
+#else
     constexpr unsigned long kHwcapSve = 1ul << 22;
+#endif
+#ifdef HWCAP2_SVE2
+    constexpr unsigned long kHwcap2Sve2 = HWCAP2_SVE2;
+#else
     constexpr unsigned long kHwcap2Sve2 = 1ul << 1;
+#endif
+#ifdef HWCAP2_SME
+    constexpr unsigned long kHwcap2Sme = HWCAP2_SME;
+#else
     constexpr unsigned long kHwcap2Sme = 1ul << 23;
+#endif
+#ifdef HWCAP2_SME2
+    constexpr unsigned long kHwcap2Sme2 = HWCAP2_SME2;
+#else
     constexpr unsigned long kHwcap2Sme2 = 1ul << 37;
+#endif
 
     const unsigned long hwcap = getauxval(AT_HWCAP);
     const unsigned long hwcap2 = getauxval(AT_HWCAP2);
-    features.neon = (hwcap & kHwcapNeon) != 0;
+    features.neon = (hwcap & kHwcapAsimd) != 0;
     features.sve = (hwcap & kHwcapSve) != 0;
     features.sve2 = (hwcap2 & kHwcap2Sve2) != 0;
     features.sme = (hwcap2 & kHwcap2Sme) != 0;
     features.sme2 = (hwcap2 & kHwcap2Sme2) != 0;
-#elif defined(__arm__)
+#elif defined(__linux__) && defined(__arm__)
+#ifdef HWCAP_NEON
+    constexpr unsigned long kHwcapNeon = HWCAP_NEON;
+#else
     constexpr unsigned long kHwcapNeon = 1ul << 12;
+#endif
     const unsigned long hwcap = getauxval(AT_HWCAP);
     features.neon = (hwcap & kHwcapNeon) != 0;
 #endif

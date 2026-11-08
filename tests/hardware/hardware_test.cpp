@@ -71,8 +71,10 @@ TEST(CpuProfileBuildTest, MirrorsFeaturesAndTopology) {
     EXPECT_TRUE(p.caps.has("avx2"));
     EXPECT_TRUE(p.caps.has("avx512vnni"));
     EXPECT_TRUE(p.caps.has("amx-bf16"));
+    EXPECT_TRUE(p.caps.has("fma"));
     EXPECT_TRUE(p.matrix.has_vector_unit);
     EXPECT_TRUE(p.matrix.has_matrix_unit);
+    EXPECT_EQ(p.matrix.matrix_unit_generation, 2);
     EXPECT_FALSE(p.fingerprint.empty());
 }
 
@@ -88,6 +90,7 @@ TEST(CpuProfileBuildTest, DisabledFeaturesHaveNoCapsOrFlags) {
     EXPECT_FALSE(p.caps.has("avx2"));
     EXPECT_FALSE(p.matrix.has_vector_unit);
     EXPECT_FALSE(p.matrix.has_matrix_unit);
+    EXPECT_EQ(p.matrix.matrix_unit_generation, 0);
     EXPECT_EQ(p.cu.num_cores, 1);
 }
 

@@ -96,6 +96,7 @@
 - Linux 拓扑:从 `/proc/cpuinfo` 读 vendor/model 与物理核、`/sys/.../cache/index*` 读 L2/L3、`/proc/meminfo` 读总/可用内存、`/sys/devices/system/node/online` 读 NUMA;非 Linux 回退到 `hardware_concurrency()` 与 1 个 NUMA 节点。
 - 指纹纳入 vendor/device、核心数、L2/L3 与全部启用 caps。
 - 验证:新增 3 项测试(Debug)后全量 **119/119** `ctest` 通过,编译无警告。
+- 初审修复:修正 aarch64 NEON 为 `HWCAP_ASIMD`(bit 1)并优先使用 `<asm/hwcap.h>` 常量;ARM 探测分支限定 `__linux__`,非 Linux ARM 回退全 false;测试补充 FMA cap 与 `matrix_unit_generation` 断言。
 
 ## 待办(后续)
 - 按里程碑顺序实现,每份 Spec 的 DoD 作验收;实现时裁决各「决策点」并回写。
