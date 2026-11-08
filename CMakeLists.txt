@@ -15,6 +15,7 @@ add_library(ie_core STATIC
     src/core/hardware/optimization_planner.cpp
     src/core/scheduler/static_scheduler.cpp
     src/core/runtime/executor.cpp
+    src/core/runtime/thread_pool.cpp
 )
 
 add_library(ie_cpu STATIC
