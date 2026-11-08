@@ -1,7 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <optional>
 
 #include "core/backend/backend.h"
 #include "core/hardware/profile.h"
@@ -50,7 +49,7 @@ private:
     std::shared_ptr<CpuAllocator> allocator_;
     KernelFns kernels_;
     bool initialized_{false};
-    std::optional<Graph> graph_;
+    std::unique_ptr<Graph> graph_;
 };
 
 }  // namespace ie

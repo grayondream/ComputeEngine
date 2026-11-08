@@ -60,7 +60,7 @@ TEST(SupportContractsTest, DefaultsAreDefined) {
               Error::Code::Unsupported);
 
     BenchmarkRunner runner;
-    EXPECT_EQ(runner.run(BenchmarkCase{"case"}).error().code,
+    EXPECT_EQ(runner.run(BenchmarkCase{"case", ""}).error().code,
               Error::Code::Unsupported);
 }
 

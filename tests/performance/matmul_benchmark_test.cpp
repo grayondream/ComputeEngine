@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <cstdint>
 #include <vector>
 
 #include "backends/cpu/simd/simd_kernels.h"

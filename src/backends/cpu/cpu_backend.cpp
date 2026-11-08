@@ -104,7 +104,7 @@ Status CpuBackend::copy_d2d(BufferHandle dst, BufferHandle src,
 }
 
 Status CpuBackend::compile(Graph& graph) {
-    graph_ = graph;
+    graph_ = std::make_unique<Graph>(graph);
     return {};
 }
 
@@ -113,7 +113,7 @@ Status CpuBackend::execute_async(const BatchPlan& /*plan*/,
     if (!initialized_) {
         return Error::invalid_argument("cpu backend is not initialized");
     }
-    if (!graph_.has_value()) {
+    if (!graph_) {
         return Error::invalid_argument("cpu backend has no compiled graph");
     }
     Executor executor;
