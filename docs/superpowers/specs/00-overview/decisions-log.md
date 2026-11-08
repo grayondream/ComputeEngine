@@ -11,7 +11,7 @@
 | C++ 标准 | **C++20** | 自研 `Status`/`Result<T>`(无 `std::expected`) | ✅ |
 | 构建系统 | CMake + Ninja | `ie_core`/`ie_cpu`/`ie_demo` | ✅ |
 | 依赖管理 | 系统 GoogleTest 1.17 | vcpkg 延后 | ✅ |
-| 测试框架 | GoogleTest | 49 个 ctest 全绿(Debug/Release,P0 基线;当前 P0.5 全量 106) | ✅ |
+| 测试框架 | GoogleTest | 49 个 ctest 全绿(Debug/Release,P0 基线;P0.5 全量 116;P1 全量 150) | ✅ |
 | 基准框架 | Google Benchmark(延后 P1) | P0 不做基准 | ✅ |
 | 是否引入 MLIR | 延后 P0.5 复核;P0 手写 IR | 保持分层,便于后续接 Dialect | ✅ |
 | IR 序列化 | JSON(延后) | P0 无 exporter/加载器 | ✅ |
@@ -34,7 +34,7 @@
 | 决策点 | 裁定 | 副作用/备注 | 状态 |
 |---|---|---|---|
 | 基准框架 | **不引入 Google Benchmark**;仓库内 `ie_bench`(`std::chrono`)+ Release 性能 sanity | `MatMulBenchmarkSanity` 仅 Release 运行;Debug skip;不增依赖 | ✅ |
-| CPU 能力位探测深度 | **x86 全量 + ARM 基础** | x86:SSE2/AVX/AVX2/AVX-512F+BW+VL/VNNI/BF16/FP16 + AMX(CPUID leaf7/1);ARM:NEON/SVE/SVE2/SME/SME2(`getauxval`);规范名 `avx512vnni`/`avx512bf16`/`amx-*`;P1 仅登记 VNNI/AMX,无 F32 内核 | ✅ |
+| CPU 能力位探测深度 | **x86 全量 + ARM 基础** | x86:SSE2/AVX/AVX2/AVX-512F+BW+VL/VNNI/BF16/FP16 + AMX(TILE/INT8/BF16 用 CPUID leaf 7 子叶 0,FP16 用子叶 1);ARM:NEON/SVE/SVE2/SME/SME2(`getauxval`);规范名 `avx512vnni`/`avx512bf16`/`amx-*`;P1 仅登记 VNNI/AMX,无 F32 内核 | ✅ |
 | Cost model 首版 | **`estimated_tflops` 优先级(1/2/4/8)** | `select_best_cpu_variant` 取最高档;不做实测标定,微调留 P7 | ✅ |
 
 ## P2 · 传统模型链路(来源 `p2-traditional-models.md`)

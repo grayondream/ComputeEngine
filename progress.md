@@ -139,13 +139,13 @@
 ### 2026-11-08 · P1 Task 6 PyTorch 参考 MLP、端到端对齐与基准 ✅
 - 提交 `1fc4402`;新增 `tests/reference/gen_mlp_reference.py`、`tests/data/mlp_reference.h`、`tests/runtime/mlp_e2e_test.cpp`、`tests/performance/matmul_benchmark_test.cpp`、`src/benchmarks/ie_bench.cpp`;修改顶层与 `tests/CMakeLists.txt`。
 - 黄金数据:PyTorch 2.15 float32,seed `20261106`,4x8→16→8→4(ReLU/ReLU/Softmax),9 位小数;脚本重跑两次哈希一致,测试运行期不依赖 Python。
-- 6 节点图(`MatMul/Relu/MatMul/Relu/MatMul/Softmax`),权重为图输入;偏置折叠采用齐次常量列(`W1_aug=[9,17]`、`W2_aug=[17,9]`、`W3_aug=[9,4]`),ReLU 精确保留常量 1;修正了 brief 中 `h1r=[4,16]` 与 `w2=[17,8]` 的内维不一致。
+- 6 节点图(`MatMul/Relu/MatMul/Relu/MatMul/Softmax`),权重为图输入;偏置折叠采用齐次常量列(`W1_aug=[9,17]`、`W2_aug=[17,9]`、`W3_aug=[9,4]`),ReLU 精确保留常量 1;修正了实现计划中 `h1r=[4,16]` 与 `w2=[17,8]` 的内维不一致。
 - 验证:TDD RED(缺失 `data/mlp_reference.h`;生成后暴露 `MatMul inner dimensions mismatch`)→ GREEN;Engine 路径最大误差 `8.94e-08`,标量路径 `5.96e-08`(容差 `1e-5`);Debug **150/150**(性能用例 skip)、Release **150/150**(AVX2 性能断言通过)。
 - `ie_bench`(Ryzen 5 5600X,选中 `matmul_avx2`):64³ / 128³ / 256³ 标量 3.58/1.75/1.62 GFLOPS,选中 23.27/13.39/11.97 GFLOPS;本机无 AVX-512,相关分支仅编译未执行。
 - 复审修复(`21ca813`):`CpuBackend::graph_` 由 `std::optional<Graph>` 改为 `std::unique_ptr<Graph>`,消除 GCC 15 在 `std::optional<Graph>` 析构 `shared_ptr<Graph>` 时的 `-Wmaybe-uninitialized`;补齐性能测试 `<cstdint>` 与 `api_support_contract_test` 的聚合初始化,强制 `-Wall -Wextra -Wpedantic` 的全目标 Release 构建零告警;聚焦 5 项、Debug/Release 全量 **150/150** 通过。
 
 ### 2026-11-08 · P1 Task 7 决策回写、接口增补与最终验证 ✅
-- 提交范围:`7ce453c..56ac645`(Task 1–6 共 19 个提交);Task 7 为本次文档提交。
+- 提交范围:`7ce453c^..56ac645`(含 Task 1 首提交,共 19 个提交);Task 7 为本次文档提交。
 - 文档回写:
   - `docs/superpowers/specs/m2-backend-core/p1-cpu-hardware.md` 追加「§9 实现期裁定」:不引入 Google Benchmark、函数级 target + 能力位分派、AVX-512 主机 skip、偏置折叠齐次坐标、PyTorch 黄金数据离线、持久线程池/固定归约、`CpuAllocator` 64B 对齐且保留 `MallocAllocator`、规范能力位名、VNNI/AMX 仅登记、cost model 按 `estimated_tflops`;并专节记录 17/9 维度修正与 Release `-Wmaybe-uninitialized`(`graph_` 改 `unique_ptr`)。
   - `docs/superpowers/specs/00-overview/decisions-log.md`:P1 能力位深度、cost model 标记 ✅,新增「基准框架:不引入 Google Benchmark,仓库内 `ie_bench`」✅。

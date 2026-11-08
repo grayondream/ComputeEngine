@@ -60,9 +60,10 @@
 | 基准框架 | **Google Benchmark**(P0 候选) | §6 性能 sanity 用它 |
 | CPU 能力位探测深度 | **x86 全量 + ARM 基础** | x86:SSE2/AVX/AVX2/AVX512(含 BW/VL/VNNI/BF16/FP16)+ AMX(CPUID leaf7);ARM:NEON 实现 + SVE/SME 探测接口占位 |
 | Cost model 首版 | **保守启发式** | KernelVariant 选择用"高能力位优先 + 阈值(如 ρ、带宽)",不做真实 cost;运行期实测微调整体留 P7 |
+
 ## 9. 实现期裁定(2026-11-08 回写)
 
-> 实现提交范围 `7ce453c..56ac645`(Task 1–6)。本节覆盖并取代 §8 的默认建议;§1–§7 的 DoD/接口不作删改。最终验证数字见 `todo.md` / `progress.md`。
+> 实现提交范围 `7ce453c^..56ac645`(含 Task 1 首提交,Task 1–6 共 19 个提交)。本节覆盖并取代 §8 的默认建议;§1–§7 的 DoD/接口不作删改。最终验证数字见 `todo.md` / `progress.md`。
 
 | 决策点 | 实现期裁定 | 说明 |
 |---|---|---|
@@ -73,13 +74,13 @@
 | PyTorch 参考数据 | **一次性生成并提交** `tests/data/mlp_reference.h`;测试离线运行 | `tests/reference/gen_mlp_reference.py`(PyTorch 2.15、seed `20261106`、F32、9 位小数);重跑哈希一致;运行期不依赖 Python/PyTorch |
 | 线程模型 | **持久 `ThreadPool`**,MatMul 按输出行切分,归约顺序固定 | `CpuBackend` 持有线程池(线程数 `cores*threads_per_core` 钳制 `[1,64]`);`parallel_for(m,1,...)` 每行独立、k 升序累加;`threads<=1` 调用线程内联;非重入 |
 | CPU 分配器 | **`CpuAllocator` 64 字节对齐**;Engine 既有 `MallocAllocator` 路径保留 | `posix_memalign`(Windows `_aligned_malloc`);按 64 倍数统计;重复释放/null 安全;`CpuBackend::execute_async` 仍优先使用调用方 `context.allocator` |
-| 能力位命名 | 沿用规范名 **`avx512vnni` / `avx512bf16` / `amx-*`** | `amx-tile`/`amx-int8`/`amx-bf16`/`amx-fp16`;与 `KernelVariant.req.required_caps` 及 profile 映射一致,不写架构名 if-else 链 |
+| 能力位命名 | 沿用规范名 **`avx512vnni` / `avx512bf16` / `amx-*`** | 登记的能力位为 `amx-int8`/`amx-bf16`/`amx-fp16`;AMX-TILE 仅作 CPUID 前置校验,不登记为能力位;与 `KernelVariant.req.required_caps` 及 profile 映射一致,不写架构名 if-else 链 |
 | VNNI/AMX 内核 | P1 **仅登记能力位,不提供 F32 内核** | VNNI/AMX 的收益面向后续 INT8/BF16 dtype 里程碑;P1 变体目录止于 `avx512` |
 | Cost model | **按 `estimated_tflops` 取最高**;实测微调留 P7 | 四档成本固定为 1/2/4/8;`select_best_cpu_variant` 只做优先级排序,不做运行期标定 |
 
 ### 9.1 MLP 增广维度修正(17/9)
 
-- 原 brief 的 `h1r=[4,16]` 与 `w2=[17,8]` 本身就互相矛盾:偏置折叠后,隐层输出必须带上常量列,`h1r` 应为 `[4,17]`;`w2` 的输入维必须是 `17`(16 个隐单元 + 1 个常量),输出维应为 `9`(8 个隐单元 + 1 个常量)。按原 shape 会触发 `MatMul inner dimensions mismatch`,且第三层偏置无法折叠。
+- 原实现计划的 `h1r=[4,16]` 与 `w2=[17,8]` 本身就互相矛盾:偏置折叠后,隐层输出必须带上常量列,`h1r` 应为 `[4,17]`;`w2` 的输入维必须是 `17`(16 个隐单元 + 1 个常量),输出维应为 `9`(8 个隐单元 + 1 个常量)。按原 shape 会触发 `MatMul inner dimensions mismatch`,且第三层偏置无法折叠。
 - 实现取 `x[4,9] → W1_aug[9,17] → h1r[4,17] → W2_aug[17,9] → h2r[4,9] → W3_aug[9,4] → logits[4,4] → Softmax`;ReLU 对常量列做 `max(1,0)=1`,因此后续层仍可直接使用齐次坐标。黄金数据按同一前向计算,数值对齐验证了该修正。
 
 ### 9.2 Release `-Wmaybe-uninitialized` 修复
