@@ -117,3 +117,12 @@
 ## 待办(后续)
 - 按里程碑顺序实现,每份 Spec 的 DoD 作验收;实现时裁决各「决策点」并回写。
 - 在 P0.5 冻结接口上增量实现 P1 CPU/硬件探测等能力。
+
+### 2026-11-08 · P1 Task 4 ReLU/Softmax 算子、MatMul 分派与优化计划 ✅
+- 提交 `7cd5a6f`;新增 `src/core/ops/common/relu_op.h`、`src/core/ops/common/softmax_op.h`;修改 `matmul_op.h`、`op_registry.cpp`、`execution_context.h`、`executor.h/.cpp`、`optimization_planner.cpp`。
+- `ExecutionContext` 增加 `kernels`/`thread_pool` 指针;`Executor::run` 追加默认参数 `kernels=nullptr`、`pool=nullptr`,既有 3 参调用保持兼容。
+- `MatMulOp` 保留原校验并优先注入 `matmul_row`;当 `pool != nullptr && m*n*k >= 32768` 时按行 `parallel_for(m, 1, ...)`,否则串行。每行独立、累加顺序不变,线程与串行结果逐字节一致(测试覆盖 64³)。
+- `ReluOp` 校验 1 输入/1 输出、F32、allocator,输出 shape 不变;优先注入 `relu`,否则标量 `x>0?x:0`。`SoftmaxOp` 支持 1D/2D(最后一维),减行 max 后 `exp` 求和归一化,其他 rank 返回 `InvalidArgument`,优先注入 `softmax`。
+- `register_builtin_ops` 幂等注册 `Relu`/`Softmax`。`OptimizationPlanner::plan` 用 `select_best_cpu_variant` 为 MatMul/Relu/Softmax 选名,失败回退 `*_scalar`,`reason="capability-driven:"+matmul name`。
+- 验证:TDD 先确认 RED(缺少 `relu_op.h`/`softmax_op.h` 导致编译失败);实现后聚焦 19 项通过,全量 **145/145** `ctest` 通过;`--clean-first` 重建 `-Wall -Wextra -Wpedantic` 无警告。
+- 边界说明:ReLU/Softmax 暂不并行(仅 MatMul 按 brief 要求);`CpuBackend` 尚未注入 kernels/pool,留待 Task 5。
