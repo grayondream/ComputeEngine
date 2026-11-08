@@ -90,6 +90,13 @@
   - `Sandbox` 生命周期统一返回 `Unsupported`;C ABI 使用 `new (std::nothrow)`;插件注册表补充所有权/生命周期注释。
   - 补齐转换/校验 9 组表驱动 `Unsupported` 默认行为测试;inventory 测试断言 10 组计数合计 79;文档方法数/Sandbox 描述与代码同步。
 
+### 2026-11-08 · P1 Task 1 硬件探测平台化 ✅
+- 提交 `7ce453c`;`detector.h` 新增 `CpuFeatures`/`CpuTopology` 与 `build_cpu_profile`,`detect_cpu` 改为「探测 → 构建 profile」两段式,保持 `Result<HardwareProfile>` 签名与 P0.5 冻结接口不变。
+- x86:标准指令集用 `__builtin_cpu_supports`(含 `fma`),AMX 用 CPUID leaf 7 补齐并以 AMX-TILE 位做前置校验;ARM:用 `getauxval(AT_HWCAP/AT_HWCAP2)` 探测 NEON/SVE/SVE2/SME/SME2(编译期隔离,未在 x86 主机运行)。
+- Linux 拓扑:从 `/proc/cpuinfo` 读 vendor/model 与物理核、`/sys/.../cache/index*` 读 L2/L3、`/proc/meminfo` 读总/可用内存、`/sys/devices/system/node/online` 读 NUMA;非 Linux 回退到 `hardware_concurrency()` 与 1 个 NUMA 节点。
+- 指纹纳入 vendor/device、核心数、L2/L3 与全部启用 caps。
+- 验证:新增 3 项测试(Debug)后全量 **119/119** `ctest` 通过,编译无警告。
+
 ## 待办(后续)
 - 按里程碑顺序实现,每份 Spec 的 DoD 作验收;实现时裁决各「决策点」并回写。
 - 在 P0.5 冻结接口上增量实现 P1 CPU/硬件探测等能力。

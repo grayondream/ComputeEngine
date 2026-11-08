@@ -45,6 +45,9 @@
 - [x] 重点复核已裁定:不引入 MLIR(自定义 `Graph::bind`)、插件 ABI 提前锁定 `0.1`、JSON 延后、`KernelVariant` 对齐 §6.2、`Status` 为规范 void 结果
 - [x] 整分支复审修复:门控权威性、transfer/copy 语义、Sandbox、C ABI nothrow、转换/校验表驱动 DoD #1 覆盖、inventory 总数与文档同步
 
+## P1 CPU 硬件(进行中)
+- [x] Task 1 硬件探测平台化(`7ce453c`):`CpuFeatures`/`CpuTopology`/`build_cpu_profile`、x86 CPUID + `__builtin_cpu_supports`、ARM `getauxval`、Linux 拓扑探测、fingerprint 扩展
+
 ## 后续
 - [ ] 每个里程碑实现时:对照「决策点」节,从默认建议起步,裁定后回写 Spec/台账
 - [ ] P1 起在 P0.5 冻结接口上增量实现 CPU/硬件探测等能力
