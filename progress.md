@@ -135,3 +135,11 @@
 - `hardware_profile()` 返回缓存的 `profile_`;`caps()` 仅置 `supports_deterministic_kernels`/`supports_batch_invariant`,其余保持默认;`alloc/free` 走 `CpuAllocator`(64B 对齐、重复释放安全)。
 - `execute_async`:未初始化返回 `InvalidArgument`;保留 `context.allocator` 优先逻辑,并把 `&kernels_`、`pool_.get()` 传入 `Executor::run`;`compile/copy/wait/is_idle/meta/memory_policy` 行为不变。
 - 验证:TDD 先写 2 项测试确认 RED(caps 为 false、65B 分配仅 16B 对齐),实现后聚焦 2 项通过,全量 **147/147** `ctest` 通过,`-Wall -Wextra -Wpedantic` 无警告。
+
+### 2026-11-08 · P1 Task 6 PyTorch 参考 MLP、端到端对齐与基准 ✅
+- 提交 `1fc4402`;新增 `tests/reference/gen_mlp_reference.py`、`tests/data/mlp_reference.h`、`tests/runtime/mlp_e2e_test.cpp`、`tests/performance/matmul_benchmark_test.cpp`、`src/benchmarks/ie_bench.cpp`;修改顶层与 `tests/CMakeLists.txt`。
+- 黄金数据:PyTorch 2.15 float32,seed `20261106`,4x8→16→8→4(ReLU/ReLU/Softmax),9 位小数;脚本重跑两次哈希一致,测试运行期不依赖 Python。
+- 6 节点图(`MatMul/Relu/MatMul/Relu/MatMul/Softmax`),权重为图输入;偏置折叠采用齐次常量列(`W1_aug=[9,17]`、`W2_aug=[17,9]`、`W3_aug=[9,4]`),ReLU 精确保留常量 1;修正了 brief 中 `h1r=[4,16]` 与 `w2=[17,8]` 的内维不一致。
+- 验证:TDD RED(缺失 `data/mlp_reference.h`;生成后暴露 `MatMul inner dimensions mismatch`)→ GREEN;Engine 路径最大误差 `8.94e-08`,标量路径 `5.96e-08`(容差 `1e-5`);Debug **150/150**(性能用例 skip)、Release **150/150**(AVX2 性能断言通过)。
+- `ie_bench`(Ryzen 5 5600X,选中 `matmul_avx2`):64³ / 128³ / 256³ 标量 3.58/1.75/1.62 GFLOPS,选中 23.27/13.39/11.97 GFLOPS;本机无 AVX-512,相关分支仅编译未执行。
+- 已知:Release 干净构建在未修改的 `cpu_backend.cpp` 上出现 GCC 15 `-Wmaybe-uninitialized`(既有告警,Task 6 文件无告警)。
