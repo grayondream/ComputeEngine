@@ -112,6 +112,7 @@
 - 内核使用函数级 `__attribute__((target(...)))`,无全局 `-march`;MatMul/ReLU 按 4/8/16 lane 向量化并标量处理尾部,AVX2/AVX-512 使用 FMA;Softmax 先行内减 max、`std::exp` 求和再除法,`cols<=0` 安全返回;非 x86/非 GNU-Clang 全部转发标量占位。
 - `CpuKernelCatalog::select` 使用初始化一次的静态 registry,按选中名称映射函数指针;`softmax_sse2` 变体映射到标量 softmax(brief 未要求独立 SSE2 softmax 内核)。
 - 验证:TDD 先写测试确认 RED(头文件缺失编译失败),实现后聚焦 5 项通过;Debug/Release 全量均 **131/131** `ctest` 通过、无警告;额外 ASan/UBSan 脚本覆盖尺寸 1/2/3/4/5/7/8/15/16/17/31/32/33/63/64/65、多行 softmax 与退化输入,`matmul/relu/softmax` 失败数均为 0。本机 CPU 无 AVX-512,相应测试按能力位跳过(代码仅编译与审查)。
+- 复审修复 round 1(`11ebcd6`):原 ReLU 长度 7 与 `rows=1, cols=7` softmax 未进入 AVX2/AVX-512 向量循环且未调用 `relu_sse2`。新增 ReLU 长度 1/4/7/8/15/16/17/33/65/66 对比(覆盖三种 SIMD 与尾部),新增 `rows=2, cols∈{17,33,65}` 的 softmax 对比与逐行和≈1/有限性断言,行内最大值放大到 1000/700 以确保减 max 的数值稳定性被覆盖。通过临时变异(ReLU 向量 store 去 max、softmax 向量 max→min、向量除法 mul→add)确认 RED 后全部还原;聚焦 7 项、全量 **133/133** 通过,内核实现未改动。
 
 ## 待办(后续)
 - 按里程碑顺序实现,每份 Spec 的 DoD 作验收;实现时裁决各「决策点」并回写。
