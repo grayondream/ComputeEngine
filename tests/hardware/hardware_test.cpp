@@ -35,3 +35,71 @@ TEST(OptimizationPlannerTest, ReturnsConservativePlan) {
                                           ModelKind::UNKNOWN, cfg);
     EXPECT_FALSE(plan.reason.empty());
 }
+
+TEST(CpuProfileBuildTest, MirrorsFeaturesAndTopology) {
+    CpuFeatures f;
+    f.sse2 = f.avx = f.avx2 = f.fma = true;
+    f.avx512f = f.avx512bw = f.avx512vl = f.avx512_vnni = true;
+    f.amx_bf16 = true;
+    CpuTopology t;
+    t.vendor = "amd";
+    t.device_name = "test-cpu";
+    t.num_cores = 6;
+    t.threads_per_core = 2;
+    t.max_threads_per_core = 2;
+    t.l2_cache_size = 3u << 20;
+    t.l3_cache_size = 32u << 20;
+    t.num_memory_channels = 2;
+    t.total_memory = 16ull << 30;
+    t.available_memory = 8ull << 30;
+    t.numa_nodes = 1;
+
+    const HardwareProfile p = HardwareDetector::build_cpu_profile(f, t);
+    EXPECT_EQ(p.vendor, "amd");
+    EXPECT_EQ(p.device_name, "test-cpu");
+    EXPECT_EQ(p.cu.num_cores, 6);
+    EXPECT_EQ(p.cu.threads_per_core, 2);
+    EXPECT_EQ(p.cu.l2_cache_size, 3u << 20);
+    EXPECT_EQ(p.cu.l3_cache_size, 32u << 20);
+    EXPECT_EQ(p.mem.vram_total, 16ull << 30);
+    EXPECT_EQ(p.mem.vram_available, 8ull << 30);
+    EXPECT_EQ(p.deploy.numa_nodes, 1);
+    EXPECT_TRUE(p.matrix.has_sse2);
+    EXPECT_TRUE(p.matrix.has_avx2);
+    EXPECT_TRUE(p.matrix.has_avx512_vnni);
+    EXPECT_TRUE(p.matrix.has_amx_bf16);
+    EXPECT_TRUE(p.caps.has("avx2"));
+    EXPECT_TRUE(p.caps.has("avx512vnni"));
+    EXPECT_TRUE(p.caps.has("amx-bf16"));
+    EXPECT_TRUE(p.matrix.has_vector_unit);
+    EXPECT_TRUE(p.matrix.has_matrix_unit);
+    EXPECT_FALSE(p.fingerprint.empty());
+}
+
+TEST(CpuProfileBuildTest, DisabledFeaturesHaveNoCapsOrFlags) {
+    CpuFeatures f;
+    CpuTopology t;
+    t.num_cores = 1;
+    t.threads_per_core = 1;
+    t.numa_nodes = 1;
+    const HardwareProfile p = HardwareDetector::build_cpu_profile(f, t);
+    EXPECT_FALSE(p.matrix.has_sse2);
+    EXPECT_FALSE(p.matrix.has_avx2);
+    EXPECT_FALSE(p.caps.has("avx2"));
+    EXPECT_FALSE(p.matrix.has_vector_unit);
+    EXPECT_FALSE(p.matrix.has_matrix_unit);
+    EXPECT_EQ(p.cu.num_cores, 1);
+}
+
+TEST(HardwareDetectorTest, DetectCpuIsConsistentAndStable) {
+    auto first = HardwareDetector::detect_cpu();
+    auto second = HardwareDetector::detect_cpu();
+    ASSERT_TRUE(first.has_value());
+    ASSERT_TRUE(second.has_value());
+    EXPECT_EQ(first->fingerprint, second->fingerprint);
+    EXPECT_GT(first->cu.num_cores, 0);
+    EXPECT_EQ(first->matrix.has_sse2, first->caps.has("sse2"));
+    EXPECT_EQ(first->matrix.has_avx2, first->caps.has("avx2"));
+    EXPECT_EQ(first->matrix.has_avx512_vnni,
+              first->caps.has("avx512vnni"));
+}
