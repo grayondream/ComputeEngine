@@ -1,6 +1,7 @@
 #include "core/runtime/thread_pool.h"
 
 #include <algorithm>
+#include <exception>
 
 namespace ie {
 
@@ -70,12 +71,21 @@ void ThreadPool::parallel_for(
     }
     work_cv_.notify_all();
 
-    consume_chunks(fn);
+    std::exception_ptr caller_error;
+    try {
+        consume_chunks(fn);
+    } catch (...) {
+        caller_error = std::current_exception();
+    }
 
     {
         std::unique_lock<std::mutex> lock(mutex_);
         done_cv_.wait(lock, [this] { return active_ == 0; });
         job_ = nullptr;
+    }
+
+    if (caller_error) {
+        std::rethrow_exception(caller_error);
     }
 }
 

@@ -20,6 +20,10 @@ namespace ie {
 //
 // parallel_for is non-reentrant: a task must not call parallel_for on the same
 // pool. Concurrent calls from different threads are serialized.
+//
+// Task bodies must not throw. If the task running on the calling thread throws,
+// parallel_for lets the remaining round finish and then rethrows, leaving the
+// pool usable; an exception escaping a worker task calls std::terminate.
 class ThreadPool {
 public:
     explicit ThreadPool(std::size_t threads);
