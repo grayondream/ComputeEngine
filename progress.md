@@ -126,3 +126,12 @@
 - `register_builtin_ops` 幂等注册 `Relu`/`Softmax`。`OptimizationPlanner::plan` 用 `select_best_cpu_variant` 为 MatMul/Relu/Softmax 选名,失败回退 `*_scalar`,`reason="capability-driven:"+matmul name`。
 - 验证:TDD 先确认 RED(缺少 `relu_op.h`/`softmax_op.h` 导致编译失败);实现后聚焦 19 项通过,全量 **145/145** `ctest` 通过;`--clean-first` 重建 `-Wall -Wextra -Wpedantic` 无警告。
 - 边界说明:ReLU/Softmax 暂不并行(仅 MatMul 按 brief 要求);`CpuBackend` 尚未注入 kernels/pool,留待 Task 5。
+
+### 2026-11-08 · P1 Task 5 CpuBackend 集成 ✅
+- 提交 `9a413fc`;修改 `src/backends/cpu/cpu_backend.h/.cpp`、`tests/backend/backend_test.cpp`。
+- `CpuBackend` 成员改为 `HardwareProfile profile_`、`std::unique_ptr<ThreadPool> pool_`、`std::shared_ptr<CpuAllocator> allocator_`、`KernelFns kernels_`、`bool initialized_`(保留 `graph_`);构造时创建 `CpuAllocator`,析构时按 `shutdown` 顺序释放。
+- `init`:幂等;`HardwareDetector::detect_cpu()` 失败原样返回,`CpuKernelCatalog::select` 失败原样返回;线程数按 `num_cores * threads_per_core` 计算并钳制到 `[1,64]`;线程池构造异常转为 `Error::runtime`;全部成功后才提交 profile/kernels/pool 并置 `initialized_`。
+- `shutdown`:幂等,先 `pool_.reset()` 再 `graph_.reset()`,清空 kernels 并置 `initialized_=false`。
+- `hardware_profile()` 返回缓存的 `profile_`;`caps()` 仅置 `supports_deterministic_kernels`/`supports_batch_invariant`,其余保持默认;`alloc/free` 走 `CpuAllocator`(64B 对齐、重复释放安全)。
+- `execute_async`:未初始化返回 `InvalidArgument`;保留 `context.allocator` 优先逻辑,并把 `&kernels_`、`pool_.get()` 传入 `Executor::run`;`compile/copy/wait/is_idle/meta/memory_policy` 行为不变。
+- 验证:TDD 先写 2 项测试确认 RED(caps 为 false、65B 分配仅 16B 对齐),实现后聚焦 2 项通过,全量 **147/147** `ctest` 通过,`-Wall -Wextra -Wpedantic` 无警告。

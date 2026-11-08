@@ -50,6 +50,7 @@
 - [x] Task 2 CPU 分配器与确定性线程池(`ace983f`):`CpuAllocator`(64B 对齐、64 倍数统计、重复释放安全)、`ThreadPool`(确定性 chunk 分配、`threads<=1` 调用线程内联、非重入)
 - [x] Task 3 SIMD 内核与能力目录(`3165aab`):`KernelFns`、12 个 CPU 变体(3 op × 4 档)、标量/SSE2/AVX2/AVX-512 内核、`CpuKernelCatalog::select`;复审补测(`11ebcd6`)覆盖 ReLU/Softmax 向量循环与 2-D softmax
 - [x] Task 4 ReLU/Softmax 算子与 MatMul 分派(`7cd5a6f`):`ReluOp`/`SoftmaxOp`(1D/2D 稳定 softmax)、`ExecutionContext` 注入 `KernelFns*`/`ThreadPool*`、`Executor::run` 默认参数、MatMul 按行并行(阈值 32768)、`OptimizationPlanner` 能力驱动首选内核
+- [x] Task 5 CpuBackend 集成(`9a413fc`):`CpuBackend` 持有 profile/线程池/`CpuAllocator`/`KernelFns`;`init` 幂等探测与选核、线程数钳制 `[1,64]`;`shutdown` 先释放池再清图;`caps` 置确定性/批次不变标志;`execute_async` 注入 kernels 与 pool
 
 ## 后续
 - [ ] 每个里程碑实现时:对照「决策点」节,从默认建议起步,裁定后回写 Spec/台账
