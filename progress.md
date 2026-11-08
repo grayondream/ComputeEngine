@@ -106,6 +106,13 @@
 - 验证:新增 4 项测试(Debug),全量 **123/123** `ctest` 通过,`-Wall -Wextra -Wpedantic` 无警告;额外用 TSan(200 轮多线程压力)与 ASan/UBSan(分配器/线程池)本地验证通过。
 - 复审修复 round 1(`9cba3f2`):调用线程任务抛异常时先等待本轮 `active_==0`、清空 `job_` 再重抛,避免 worker 引用已销毁任务;头文件明确任务体不得抛出(worker 内异常调用 `std::terminate`)。补齐 `total==0`、`grain==0`/超大 grain、连续两轮 `parallel_for`、区间合法性测试;全量 **126/126** 通过。
 
+### 2026-11-08 · P1 Task 3 SIMD 内核与能力目录 ✅
+- 提交 `3165aab`;新增 `src/core/ops/kernel_fns.h`、`src/core/tuning/cpu_kernel_variants.h`(header-only)、`src/backends/cpu/simd/simd_kernels.h/.cpp`、`src/backends/cpu/kernels/cpu_kernel_catalog.h/.cpp`;两个 `.cpp` 加入 `ie_cpu`。
+- `KernelFns` 三分量签名与 brief 一致;`register_cpu_kernel_variants` 注册 12 个变体(MatMul/Relu/Softmax × scalar/sse2/avx2/avx512),前置能力分别为无/`sse2`/`avx2+fma`/`avx512f+avx512bw+avx512vl`,`estimated_tflops` 1/2/4/8;`select_best_cpu_variant` 取最大 TFLOPS,空匹配返回 `NotFound`。
+- 内核使用函数级 `__attribute__((target(...)))`,无全局 `-march`;MatMul/ReLU 按 4/8/16 lane 向量化并标量处理尾部,AVX2/AVX-512 使用 FMA;Softmax 先行内减 max、`std::exp` 求和再除法,`cols<=0` 安全返回;非 x86/非 GNU-Clang 全部转发标量占位。
+- `CpuKernelCatalog::select` 使用初始化一次的静态 registry,按选中名称映射函数指针;`softmax_sse2` 变体映射到标量 softmax(brief 未要求独立 SSE2 softmax 内核)。
+- 验证:TDD 先写测试确认 RED(头文件缺失编译失败),实现后聚焦 5 项通过;Debug/Release 全量均 **131/131** `ctest` 通过、无警告;额外 ASan/UBSan 脚本覆盖尺寸 1/2/3/4/5/7/8/15/16/17/31/32/33/63/64/65、多行 softmax 与退化输入,`matmul/relu/softmax` 失败数均为 0。本机 CPU 无 AVX-512,相应测试按能力位跳过(代码仅编译与审查)。
+
 ## 待办(后续)
 - 按里程碑顺序实现,每份 Spec 的 DoD 作验收;实现时裁决各「决策点」并回写。
 - 在 P0.5 冻结接口上增量实现 P1 CPU/硬件探测等能力。
