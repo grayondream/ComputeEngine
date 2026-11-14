@@ -32,11 +32,6 @@ const std::vector<StubCase>& AllStubCases() {
         {"LSTM", [] { return std::make_unique<LSTMOp>(); }},
         {"GRU", [] { return std::make_unique<GRUOp>(); }},
         {"RNN", [] { return std::make_unique<RNNOp>(); }},
-        {"Upsample", [] { return std::make_unique<UpsampleOp>(); }},
-        {"Pad", [] { return std::make_unique<PadOp>(); }},
-        {"Clip", [] { return std::make_unique<ClipOp>(); }},
-        {"Sigmoid", [] { return std::make_unique<SigmoidOp>(); }},
-        {"Tanh", [] { return std::make_unique<TanhOp>(); }},
         {"GBDTSplit", [] { return std::make_unique<GBDTSplitOp>(); }},
         {"GBDTLeaf", [] { return std::make_unique<GBDTLeafOp>(); }},
         // transformer
@@ -85,7 +80,7 @@ TEST(OpsFamiliesTest, AllStubsReturnExactUnsupportedMessage) {
     std::vector<Tensor*> out;
     ExecutionContext context;
 
-    ASSERT_EQ(AllStubCases().size(), 27u);
+    ASSERT_EQ(AllStubCases().size(), 22u);
     for (const StubCase& test_case : AllStubCases()) {
         SCOPED_TRACE(test_case.name);
         auto op = test_case.make();

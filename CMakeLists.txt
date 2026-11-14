@@ -21,6 +21,8 @@ add_library(ie_core STATIC
     src/ops/traditional/batch_norm_op.cpp
     src/ops/traditional/gemm_op.cpp
     src/ops/traditional/layout_ops.cpp
+    src/ops/traditional/data_ops.cpp
+    src/ops/traditional/activation_ops.cpp
     src/models/traditional/onnx/onnx_wire.cpp
     src/models/traditional/onnx/onnx_loader.cpp
     src/converter/format_loader/format_loader.cpp

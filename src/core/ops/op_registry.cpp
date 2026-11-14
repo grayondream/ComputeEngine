@@ -5,8 +5,10 @@
 #include "core/ops/common/mul_op.h"
 #include "core/ops/common/relu_op.h"
 #include "core/ops/common/softmax_op.h"
+#include "ops/traditional/activation_ops.h"
 #include "ops/traditional/batch_norm_op.h"
 #include "ops/traditional/conv2d_op.h"
+#include "ops/traditional/data_ops.h"
 #include "ops/traditional/gemm_op.h"
 #include "ops/traditional/layout_ops.h"
 #include "ops/traditional/pool_ops.h"
@@ -93,6 +95,24 @@ void register_builtin_ops(OpRegistry& registry) {
         OpType::Reshape, [] { return std::make_unique<ReshapeOp>(); }));
     ignore_exists(registry.register_op(
         OpType::Transpose, [] { return std::make_unique<TransposeOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::Concat, [] { return std::make_unique<ConcatOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::Slice, [] { return std::make_unique<SliceOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::Pad, [] { return std::make_unique<PadOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::Upsample, [] { return std::make_unique<UpsampleOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::Gather, [] { return std::make_unique<GatherOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::Reduce, [] { return std::make_unique<ReduceOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::Clip, [] { return std::make_unique<ClipOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::Sigmoid, [] { return std::make_unique<SigmoidOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::Tanh, [] { return std::make_unique<TanhOp>(); }));
 }
 
 }  // namespace ie

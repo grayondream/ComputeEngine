@@ -11,8 +11,10 @@
 #include "core/memory/malloc_allocator.h"
 #include "core/ops/op_registry.h"
 #include "data/traditional_reference.h"
+#include "ops/traditional/activation_ops.h"
 #include "ops/traditional/batch_norm_op.h"
 #include "ops/traditional/conv2d_op.h"
+#include "ops/traditional/data_ops.h"
 #include "ops/traditional/gemm_op.h"
 #include "ops/traditional/layout_ops.h"
 #include "ops/traditional/pool_ops.h"
@@ -60,6 +62,19 @@ Tensor ramp_tensor(int64_t h, int64_t w) {
         values[i] = static_cast<float>(i + 1);
     }
     return make_tensor(Shape{{1, 1, h, w}}, values.data());
+}
+
+// Compares a producing tensor against exact or near expected values.
+void expect_values(const Tensor& tensor, const std::vector<float>& expected,
+                   float tolerance = 0.0f) {
+    ASSERT_EQ(tensor.shape.numel(), static_cast<int64_t>(expected.size()));
+    for (std::size_t i = 0; i < expected.size(); ++i) {
+        if (tolerance == 0.0f) {
+            EXPECT_FLOAT_EQ(tensor.data<float>()[i], expected[i]);
+        } else {
+            EXPECT_NEAR(tensor.data<float>()[i], expected[i], tolerance);
+        }
+    }
 }
 
 }  // namespace
@@ -896,6 +911,587 @@ TEST(TraditionalOpsTest, LayoutOpsRejectInvalidArguments) {
     ASSERT_TRUE(flatten.configure(Attrs{}).has_value());
     EXPECT_EQ(flatten.forward(half_inputs, outputs, ctx).error().code,
               Error::Code::Unsupported);
+}
+
+TEST(TraditionalOpsTest, ConcatSlicePadGatherReduce) {
+    ExecutionContext ctx = make_context();
+
+    // Concat along a negative axis: only the concatenated dimension may vary.
+    const float a_data[4] = {1, 2, 3, 4};
+    const float b_data[2] = {5, 6};
+    auto a = make_tensor(Shape{{2, 2}}, a_data);
+    auto b = make_tensor(Shape{{1, 2}}, b_data);
+    ConcatOp concat;
+    Attrs concat_attrs;
+    concat_attrs["axis"] = static_cast<int64_t>(-2);
+    ASSERT_TRUE(concat.configure(concat_attrs).has_value());
+    {
+        std::vector<Tensor*> inputs{&a, &b};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(concat.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{3, 2}}));
+        expect_values(out[0], {1, 2, 3, 4, 5, 6});
+    }
+
+    // Slice with attribute parameters on [3,4].
+    std::vector<float> values(12);
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        values[i] = static_cast<float>(i + 1);
+    }
+    auto x = make_tensor(Shape{{3, 4}}, values.data());
+    SliceOp slice_attrs;
+    Attrs slice_attr_values;
+    slice_attr_values["starts"] = std::vector<int64_t>{0, 1};
+    slice_attr_values["ends"] = std::vector<int64_t>{3, 3};
+    slice_attr_values["axes"] = std::vector<int64_t>{0, 1};
+    slice_attr_values["steps"] = std::vector<int64_t>{1, 1};
+    ASSERT_TRUE(slice_attrs.configure(slice_attr_values).has_value());
+    {
+        std::vector<Tensor*> inputs{&x};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(slice_attrs.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{3, 2}}));
+        expect_values(out[0], {2, 3, 6, 7, 10, 11});
+    }
+
+    // Slice opset-10 inputs: F32 values truncate to int64, negative axis.
+    const float starts_data[1] = {0.9f};
+    const float ends_data[1] = {3.0f};
+    const float axes_data[1] = {-1.0f};
+    const float steps_data[1] = {2.0f};
+    auto starts = make_tensor(Shape{{1}}, starts_data);
+    auto ends = make_tensor(Shape{{1}}, ends_data);
+    auto axes = make_tensor(Shape{{1}}, axes_data);
+    auto steps = make_tensor(Shape{{1}}, steps_data);
+    SliceOp slice_inputs;
+    ASSERT_TRUE(slice_inputs.configure(Attrs{}).has_value());
+    {
+        std::vector<Tensor*> inputs{&x, &starts, &ends, &axes, &steps};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(slice_inputs.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{3, 2}}));
+        expect_values(out[0], {1, 3, 5, 7, 9, 11});
+    }
+
+    // Pad with the ONNX [begins..., ends...] layout and a constant value.
+    const float pad_data[4] = {1, 2, 3, 4};
+    auto pad_input = make_tensor(Shape{{2, 2}}, pad_data);
+    PadOp pad;
+    Attrs pad_attrs;
+    pad_attrs["pads"] = std::vector<int64_t>{1, 1, 0, 0};
+    pad_attrs["value"] = 9.0;
+    ASSERT_TRUE(pad.configure(pad_attrs).has_value());
+    {
+        std::vector<Tensor*> inputs{&pad_input};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(pad.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{3, 3}}));
+        expect_values(out[0], {9, 9, 9, 9, 1, 2, 9, 3, 4});
+    }
+
+    // Pad opset-11 inputs: pads and constant value tensors.
+    const float one_d_data[3] = {1, 2, 3};
+    auto one_d = make_tensor(Shape{{3}}, one_d_data);
+    const float pads_data[2] = {0.0f, 2.0f};
+    const float value_data[1] = {7.0f};
+    auto pads_tensor = make_tensor(Shape{{2}}, pads_data);
+    auto value_tensor = make_tensor(Shape{{1}}, value_data);
+    PadOp pad_inputs;
+    ASSERT_TRUE(pad_inputs.configure(Attrs{}).has_value());
+    {
+        std::vector<Tensor*> inputs{&one_d, &pads_tensor, &value_tensor};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(pad_inputs.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{5}}));
+        expect_values(out[0], {1, 2, 3, 7, 7});
+    }
+
+    const float gather_data[12] = {1, 2, 3, 4, 5, 6, 7,
+                                   8, 9, 10, 11, 12};
+    auto gather_input = make_tensor(Shape{{3, 4}}, gather_data);
+    const float index_data[2] = {2.0f, 0.0f};
+    auto indices = make_tensor(Shape{{2}}, index_data);
+
+    // Gather with a negative axis.
+    GatherOp gather;
+    Attrs gather_attrs;
+    gather_attrs["axis"] = static_cast<int64_t>(-1);
+    ASSERT_TRUE(gather.configure(gather_attrs).has_value());
+    {
+        std::vector<Tensor*> inputs{&gather_input, &indices};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(gather.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{3, 2}}));
+        expect_values(out[0], {3, 1, 7, 5, 11, 9});
+    }
+
+    // Gather normalizes negative indices.
+    const float negative_index_data[1] = {-1.0f};
+    auto negative_index = make_tensor(Shape{{1}}, negative_index_data);
+    GatherOp gather_last;
+    Attrs gather_axis_zero;
+    gather_axis_zero["axis"] = static_cast<int64_t>(0);
+    ASSERT_TRUE(gather_last.configure(gather_axis_zero).has_value());
+    {
+        std::vector<Tensor*> inputs{&gather_input, &negative_index};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(gather_last.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{1, 4}}));
+        expect_values(out[0], {9, 10, 11, 12});
+    }
+
+    // ReduceMean over axis 1 with keepdims.
+    ReduceOp mean;
+    Attrs mean_attrs;
+    mean_attrs["axes"] = std::vector<int64_t>{1};
+    mean_attrs["keepdims"] = static_cast<int64_t>(1);
+    mean_attrs["reduce_mode"] = std::string("mean");
+    ASSERT_TRUE(mean.configure(mean_attrs).has_value());
+    {
+        std::vector<Tensor*> inputs{&gather_input};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(mean.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{3, 1}}));
+        expect_values(out[0], {2.5f, 6.5f, 10.5f});
+    }
+
+    // ReduceSum over axis 0 without keepdims.
+    ReduceOp sum;
+    Attrs sum_attrs;
+    sum_attrs["axes"] = std::vector<int64_t>{0};
+    sum_attrs["keepdims"] = static_cast<int64_t>(0);
+    sum_attrs["reduce_mode"] = std::string("sum");
+    ASSERT_TRUE(sum.configure(sum_attrs).has_value());
+    {
+        std::vector<Tensor*> inputs{&gather_input};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(sum.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{4}}));
+        expect_values(out[0], {15, 18, 21, 24});
+    }
+
+    // An empty axes list reduces over every axis; keepdims defaults to 1.
+    ReduceOp mean_all;
+    Attrs mean_all_attrs;
+    mean_all_attrs["reduce_mode"] = std::string("mean");
+    ASSERT_TRUE(mean_all.configure(mean_all_attrs).has_value());
+    {
+        std::vector<Tensor*> inputs{&gather_input};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(mean_all.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{1, 1}}));
+        expect_values(out[0], {6.5f});
+    }
+}
+
+TEST(TraditionalOpsTest, UpsampleNearestAndClipSigmoidTanh) {
+    ExecutionContext ctx = make_context();
+
+    // Nearest-neighbor NCHW upsample from the scales attribute.
+    const float upsample_data[4] = {1, 2, 3, 4};
+    auto upsample_input = make_tensor(Shape{{1, 1, 2, 2}}, upsample_data);
+    UpsampleOp upsample;
+    Attrs upsample_attrs;
+    upsample_attrs["scales"] = std::vector<double>{1.0, 1.0, 2.0, 2.0};
+    upsample_attrs["mode"] = std::string("nearest");
+    ASSERT_TRUE(upsample.configure(upsample_attrs).has_value());
+    {
+        std::vector<Tensor*> inputs{&upsample_input};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(upsample.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{1, 1, 4, 4}}));
+        expect_values(out[0], {1, 1, 2, 2, 1, 1, 2, 2,
+                               3, 3, 4, 4, 3, 3, 4, 4});
+    }
+
+    // Upsample from an F32 scales input tensor.
+    const float row_data[2] = {5, 6};
+    auto row_input = make_tensor(Shape{{1, 1, 1, 2}}, row_data);
+    const float scale_data[4] = {1.0f, 1.0f, 1.0f, 2.0f};
+    auto scale_tensor = make_tensor(Shape{{4}}, scale_data);
+    UpsampleOp upsample_inputs;
+    ASSERT_TRUE(upsample_inputs.configure(Attrs{}).has_value());
+    {
+        std::vector<Tensor*> inputs{&row_input, &scale_tensor};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(upsample_inputs.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{1, 1, 1, 4}}));
+        expect_values(out[0], {5, 5, 6, 6});
+    }
+
+    // Clip with attribute bounds.
+    const float clip_data[5] = {-2, -1, 0, 1, 2};
+    auto clip_input = make_tensor(Shape{{5}}, clip_data);
+    ClipOp clip;
+    Attrs clip_attrs;
+    clip_attrs["min"] = -1.0;
+    clip_attrs["max"] = 1.0;
+    ASSERT_TRUE(clip.configure(clip_attrs).has_value());
+    {
+        std::vector<Tensor*> inputs{&clip_input};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(clip.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{5}}));
+        expect_values(out[0], {-1, -1, 0, 1, 1});
+    }
+
+    // Clip with scalar min/max input tensors.
+    const float min_data[1] = {0.5f};
+    const float max_data[1] = {1.5f};
+    auto min_tensor = make_tensor(Shape{{1}}, min_data);
+    auto max_tensor = make_tensor(Shape{{1}}, max_data);
+    ClipOp clip_inputs;
+    ASSERT_TRUE(clip_inputs.configure(Attrs{}).has_value());
+    {
+        std::vector<Tensor*> inputs{&clip_input, &min_tensor, &max_tensor};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(clip_inputs.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{5}}));
+        expect_values(out[0], {0.5f, 0.5f, 0.5f, 1.0f, 1.5f});
+    }
+
+    // A missing upper bound leaves positive values untouched.
+    ClipOp clip_lower;
+    Attrs lower_attrs;
+    lower_attrs["min"] = 0.0;
+    ASSERT_TRUE(clip_lower.configure(lower_attrs).has_value());
+    {
+        std::vector<Tensor*> inputs{&clip_input};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(clip_lower.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{5}}));
+        expect_values(out[0], {0, 0, 0, 1, 2});
+    }
+
+    // Sigmoid is elementwise and stays strictly inside (0, 1).
+    const float sigmoid_data[4] = {-2, -1, 0, 2};
+    auto sigmoid_input = make_tensor(Shape{{4}}, sigmoid_data);
+    SigmoidOp sigmoid;
+    {
+        std::vector<Tensor*> inputs{&sigmoid_input};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(sigmoid.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{4}}));
+        expect_values(out[0], {0.11920292f, 0.26894143f, 0.5f, 0.88079708f},
+                      1e-6f);
+        for (int64_t i = 0; i < sigmoid_input.shape.numel(); ++i) {
+            EXPECT_GT(out[0].data<float>()[i], 0.0f);
+            EXPECT_LT(out[0].data<float>()[i], 1.0f);
+        }
+    }
+
+    // Tanh is elementwise and its magnitude stays strictly below 1.
+    const float tanh_data[3] = {-1, 0, 1};
+    auto tanh_input = make_tensor(Shape{{3}}, tanh_data);
+    TanhOp tanh;
+    {
+        std::vector<Tensor*> inputs{&tanh_input};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(tanh.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{3}}));
+        expect_values(out[0], {-0.76159416f, 0.0f, 0.76159416f}, 1e-6f);
+        for (int64_t i = 0; i < tanh_input.shape.numel(); ++i) {
+            EXPECT_LT(std::fabs(out[0].data<float>()[i]), 1.0f);
+        }
+    }
+}
+
+TEST(TraditionalOpsTest, SliceHandlesNegativeEndsAndSteps) {
+    std::vector<float> values(12);
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        values[i] = static_cast<float>(i + 1);
+    }
+    auto x = make_tensor(Shape{{3, 4}}, values.data());
+    ExecutionContext ctx = make_context();
+
+    const auto run = [&](const Attrs& attrs) {
+        SliceOp op;
+        EXPECT_TRUE(op.configure(attrs).has_value());
+        std::vector<Tensor*> inputs{&x};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        EXPECT_TRUE(op.forward(inputs, outputs, ctx).has_value());
+        return out[0];
+    };
+
+    // Negative start/end with a negative step reverses every row.
+    Attrs reverse_rows;
+    reverse_rows["starts"] = std::vector<int64_t>{-1};
+    reverse_rows["ends"] = std::vector<int64_t>{-5};
+    reverse_rows["axes"] = std::vector<int64_t>{-1};
+    reverse_rows["steps"] = std::vector<int64_t>{-1};
+    Tensor reversed = run(reverse_rows);
+    ASSERT_EQ(reversed.shape, (Shape{{3, 4}}));
+    expect_values(reversed, {4, 3, 2, 1, 8, 7, 6, 5, 12, 11, 10, 9});
+
+    // Stride 2 over rows while stepping backwards.
+    Attrs strided_rows;
+    strided_rows["starts"] = std::vector<int64_t>{2};
+    strided_rows["ends"] = std::vector<int64_t>{-4};
+    strided_rows["axes"] = std::vector<int64_t>{0};
+    strided_rows["steps"] = std::vector<int64_t>{-2};
+    Tensor strided = run(strided_rows);
+    ASSERT_EQ(strided.shape, (Shape{{2, 4}}));
+    expect_values(strided, {9, 10, 11, 12, 1, 2, 3, 4});
+
+    // Negative indices with a positive step on the last axis.
+    Attrs negative_indices;
+    negative_indices["starts"] = std::vector<int64_t>{-3};
+    negative_indices["ends"] = std::vector<int64_t>{-1};
+    negative_indices["axes"] = std::vector<int64_t>{-1};
+    Tensor middle = run(negative_indices);
+    ASSERT_EQ(middle.shape, (Shape{{3, 2}}));
+    expect_values(middle, {2, 3, 6, 7, 10, 11});
+
+    // A very negative end means "slice to the beginning" for negative steps.
+    Attrs to_beginning;
+    to_beginning["starts"] = std::vector<int64_t>{-1};
+    to_beginning["ends"] = std::vector<int64_t>{-2147483648};
+    to_beginning["axes"] = std::vector<int64_t>{0};
+    to_beginning["steps"] = std::vector<int64_t>{-1};
+    Tensor beginning = run(to_beginning);
+    ASSERT_EQ(beginning.shape, (Shape{{3, 4}}));
+    expect_values(beginning, {9, 10, 11, 12, 5, 6, 7, 8, 1, 2, 3, 4});
+}
+
+TEST(TraditionalOpsTest, DataAndActivationOpsRejectInvalidArguments) {
+    ExecutionContext ctx = make_context();
+
+    // Concat requires equal non-axis dimensions and an in-range axis.
+    const float a_data[4] = {1, 2, 3, 4};
+    const float c_data[2] = {5, 6};
+    auto a = make_tensor(Shape{{2, 2}}, a_data);
+    auto c = make_tensor(Shape{{2, 1}}, c_data);
+    ConcatOp concat;
+    Attrs concat_axis_zero;
+    concat_axis_zero["axis"] = static_cast<int64_t>(0);
+    ASSERT_TRUE(concat.configure(concat_axis_zero).has_value());
+    {
+        std::vector<Tensor*> inputs{&a, &c};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        EXPECT_EQ(concat.forward(inputs, outputs, ctx).error().code,
+                  Error::Code::InvalidArgument);
+    }
+    ConcatOp concat_bad_axis;
+    Attrs concat_axis_two;
+    concat_axis_two["axis"] = static_cast<int64_t>(2);
+    ASSERT_TRUE(concat_bad_axis.configure(concat_axis_two).has_value());
+    {
+        std::vector<Tensor*> inputs{&a, &c};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        EXPECT_EQ(concat_bad_axis.forward(inputs, outputs, ctx).error().code,
+                  Error::Code::InvalidArgument);
+    }
+
+    std::vector<float> values(12);
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        values[i] = static_cast<float>(i + 1);
+    }
+    auto x = make_tensor(Shape{{3, 4}}, values.data());
+    {
+        std::vector<Tensor*> inputs{&x};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+
+        // Slice rejects zero steps, out-of-range axes, and empty outputs.
+        SliceOp zero_step;
+        Attrs zero_step_attrs;
+        zero_step_attrs["starts"] = std::vector<int64_t>{0};
+        zero_step_attrs["ends"] = std::vector<int64_t>{3};
+        zero_step_attrs["steps"] = std::vector<int64_t>{0};
+        ASSERT_TRUE(zero_step.configure(zero_step_attrs).has_value());
+        EXPECT_EQ(zero_step.forward(inputs, outputs, ctx).error().code,
+                  Error::Code::InvalidArgument);
+
+        SliceOp bad_axis;
+        Attrs bad_axis_attrs;
+        bad_axis_attrs["starts"] = std::vector<int64_t>{0};
+        bad_axis_attrs["ends"] = std::vector<int64_t>{1};
+        bad_axis_attrs["axes"] = std::vector<int64_t>{2};
+        ASSERT_TRUE(bad_axis.configure(bad_axis_attrs).has_value());
+        EXPECT_EQ(bad_axis.forward(inputs, outputs, ctx).error().code,
+                  Error::Code::InvalidArgument);
+
+        SliceOp empty_result;
+        Attrs empty_attrs;
+        empty_attrs["starts"] = std::vector<int64_t>{3};
+        empty_attrs["ends"] = std::vector<int64_t>{3};
+        empty_attrs["axes"] = std::vector<int64_t>{0};
+        ASSERT_TRUE(empty_result.configure(empty_attrs).has_value());
+        EXPECT_EQ(empty_result.forward(inputs, outputs, ctx).error().code,
+                  Error::Code::InvalidArgument);
+
+        // Pad rejects malformed pads and non-constant modes.
+        PadOp bad_pads;
+        Attrs bad_pads_attrs;
+        bad_pads_attrs["pads"] = std::vector<int64_t>{1, 1, 1};
+        ASSERT_TRUE(bad_pads.configure(bad_pads_attrs).has_value());
+        EXPECT_EQ(bad_pads.forward(inputs, outputs, ctx).error().code,
+                  Error::Code::InvalidArgument);
+
+        PadOp cropped_empty;
+        Attrs cropped_attrs;
+        cropped_attrs["pads"] = std::vector<int64_t>{-4, 0};
+        ASSERT_TRUE(cropped_empty.configure(cropped_attrs).has_value());
+        EXPECT_EQ(cropped_empty.forward(inputs, outputs, ctx).error().code,
+                  Error::Code::InvalidArgument);
+
+        PadOp reflect;
+        Attrs reflect_attrs;
+        reflect_attrs["mode"] = std::string("reflect");
+        EXPECT_EQ(reflect.configure(reflect_attrs).error().code,
+                  Error::Code::Unsupported);
+
+        // Upsample only supports NCHW nearest with positive scales.
+        const float small_data[6] = {1, 2, 3, 4, 5, 6};
+        auto rank_three = make_tensor(Shape{{1, 2, 3}}, small_data);
+        UpsampleOp rank_three_op;
+        Attrs rank_three_attrs;
+        rank_three_attrs["scales"] = std::vector<double>{1.0, 2.0, 2.0};
+        ASSERT_TRUE(rank_three_op.configure(rank_three_attrs).has_value());
+        std::vector<Tensor*> rank_three_inputs{&rank_three};
+        EXPECT_EQ(rank_three_op.forward(rank_three_inputs, outputs, ctx)
+                      .error()
+                      .code,
+                  Error::Code::InvalidArgument);
+
+        UpsampleOp zero_scale_op;
+        Attrs zero_scale_attrs;
+        zero_scale_attrs["scales"] =
+            std::vector<double>{1.0, 1.0, 0.0, 2.0};
+        ASSERT_TRUE(zero_scale_op.configure(zero_scale_attrs).has_value());
+        auto image = make_tensor(Shape{{1, 1, 2, 2}}, a_data);
+        std::vector<Tensor*> image_inputs2{&image};
+        EXPECT_EQ(zero_scale_op.forward(image_inputs2, outputs, ctx)
+                      .error()
+                      .code,
+                  Error::Code::InvalidArgument);
+
+        UpsampleOp linear;
+        Attrs linear_attrs;
+        linear_attrs["mode"] = std::string("linear");
+        EXPECT_EQ(linear.configure(linear_attrs).error().code,
+                  Error::Code::Unsupported);
+
+        // Gather normalizes but rejects out-of-range indices and axes.
+        const float index_data[1] = {4.0f};
+        auto oob_index = make_tensor(Shape{{1}}, index_data);
+        GatherOp gather;
+        ASSERT_TRUE(gather.configure(Attrs{}).has_value());
+        std::vector<Tensor*> gather_inputs{&x, &oob_index};
+        EXPECT_EQ(gather.forward(gather_inputs, outputs, ctx).error().code,
+                  Error::Code::InvalidArgument);
+
+        GatherOp gather_bad_axis;
+        Attrs gather_axis_attrs;
+        gather_axis_attrs["axis"] = static_cast<int64_t>(2);
+        ASSERT_TRUE(gather_bad_axis.configure(gather_axis_attrs).has_value());
+        const float good_index_data[1] = {0.0f};
+        auto good_index = make_tensor(Shape{{1}}, good_index_data);
+        std::vector<Tensor*> gather_axis_inputs{&x, &good_index};
+        EXPECT_EQ(gather_bad_axis.forward(gather_axis_inputs, outputs, ctx)
+                      .error()
+                      .code,
+                  Error::Code::InvalidArgument);
+
+        // Reduce rejects unknown modes and duplicate axes.
+        ReduceOp bad_mode;
+        Attrs bad_mode_attrs;
+        bad_mode_attrs["reduce_mode"] = std::string("max");
+        EXPECT_EQ(bad_mode.configure(bad_mode_attrs).error().code,
+                  Error::Code::InvalidArgument);
+
+        ReduceOp duplicate_axes;
+        Attrs duplicate_attrs;
+        duplicate_attrs["axes"] = std::vector<int64_t>{1, -1};
+        duplicate_attrs["reduce_mode"] = std::string("sum");
+        ASSERT_TRUE(duplicate_axes.configure(duplicate_attrs).has_value());
+        EXPECT_EQ(duplicate_axes.forward(inputs, outputs, ctx).error().code,
+                  Error::Code::InvalidArgument);
+
+        // Clip rejects min > max and too many inputs.
+        ClipOp inverted;
+        Attrs inverted_attrs;
+        inverted_attrs["min"] = 2.0;
+        inverted_attrs["max"] = 1.0;
+        ASSERT_TRUE(inverted.configure(inverted_attrs).has_value());
+        EXPECT_EQ(inverted.forward(inputs, outputs, ctx).error().code,
+                  Error::Code::InvalidArgument);
+
+        const float clip_data[2] = {-1, 1};
+        auto clip_input = make_tensor(Shape{{2}}, clip_data);
+        const float bound_data[1] = {0.0f};
+        auto bound = make_tensor(Shape{{1}}, bound_data);
+        ClipOp extra_inputs;
+        ASSERT_TRUE(extra_inputs.configure(Attrs{}).has_value());
+        std::vector<Tensor*> clip_many{&clip_input, &bound, &bound, &bound};
+        EXPECT_EQ(extra_inputs.forward(clip_many, outputs, ctx).error().code,
+                  Error::Code::InvalidArgument);
+
+        // Elementwise activations validate dtype/count/allocator.
+        auto half = clip_input;
+        half.dtype = DType::F16;
+        SigmoidOp sigmoid;
+        std::vector<Tensor*> half_inputs{&half};
+        EXPECT_EQ(sigmoid.forward(half_inputs, outputs, ctx).error().code,
+                  Error::Code::Unsupported);
+
+        TanhOp tanh;
+        std::vector<Tensor*> no_outputs;
+        EXPECT_EQ(tanh.forward(inputs, no_outputs, ctx).error().code,
+                  Error::Code::InvalidArgument);
+
+        ExecutionContext no_allocator;
+        std::vector<Tensor> tanh_out(1);
+        std::vector<Tensor*> tanh_outputs{&tanh_out[0]};
+        EXPECT_EQ(tanh.forward(inputs, tanh_outputs, no_allocator).error().code,
+                  Error::Code::InvalidArgument);
+    }
+}
+
+TEST(TraditionalOpsTest, RegistryCreatesDataAndActivationOps) {
+    auto& registry = OpRegistry::instance();
+    register_builtin_ops(registry);
+
+    for (OpType type :
+         {OpType::Concat, OpType::Slice, OpType::Pad, OpType::Upsample,
+          OpType::Gather, OpType::Reduce, OpType::Clip, OpType::Sigmoid,
+          OpType::Tanh}) {
+        auto op = registry.create(type);
+        ASSERT_TRUE(op.has_value());
+        EXPECT_NE(op->get(), nullptr);
+    }
+    auto concat = registry.create(OpType::Concat);
+    ASSERT_TRUE(concat.has_value());
+    EXPECT_NE(dynamic_cast<ConcatOp*>(concat->get()), nullptr);
+    auto upsample = registry.create(OpType::Upsample);
+    ASSERT_TRUE(upsample.has_value());
+    EXPECT_NE(dynamic_cast<UpsampleOp*>(upsample->get()), nullptr);
+    auto sigmoid = registry.create(OpType::Sigmoid);
+    ASSERT_TRUE(sigmoid.has_value());
+    EXPECT_NE(dynamic_cast<SigmoidOp*>(sigmoid->get()), nullptr);
+    auto tanh = registry.create(OpType::Tanh);
+    ASSERT_TRUE(tanh.has_value());
+    EXPECT_NE(dynamic_cast<TanhOp*>(tanh->get()), nullptr);
 }
 
 TEST(TraditionalOpsTest, RegistryCreatesTraditionalOps) {
