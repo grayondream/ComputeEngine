@@ -13,6 +13,8 @@
 #include "data/traditional_reference.h"
 #include "ops/traditional/batch_norm_op.h"
 #include "ops/traditional/conv2d_op.h"
+#include "ops/traditional/gemm_op.h"
+#include "ops/traditional/layout_ops.h"
 #include "ops/traditional/pool_ops.h"
 
 using namespace ie;
@@ -510,13 +512,333 @@ TEST(TraditionalOpsTest, PoolRequiresKernelShapeAndF32) {
               Error::Code::Unsupported);
 }
 
+TEST(TraditionalOpsTest, GemmMatchesReferenceWithTransposeAndBias) {
+    GemmOp op;
+    Attrs attrs;
+    attrs["transB"] = static_cast<int64_t>(1);
+    ASSERT_TRUE(op.configure(attrs).has_value());
+
+    const float a_data[6] = {1, 2, 3, 4, 5, 6};
+    const float b_data[12] = {1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 2, 2};
+    const float c_data[4] = {0.5f, -1.0f, 2.0f, 3.0f};
+    auto a = make_tensor(Shape{{2, 3}}, a_data);
+    auto b = make_tensor(Shape{{4, 3}}, b_data);
+    auto c = make_tensor(Shape{{4}}, c_data);
+    std::vector<Tensor*> inputs{&a, &b, &c};
+    std::vector<Tensor> out(1);
+    std::vector<Tensor*> outputs{&out[0]};
+    ExecutionContext ctx = make_context();
+    ASSERT_TRUE(op.forward(inputs, outputs, ctx).has_value());
+    ASSERT_EQ(out[0].shape, (Shape{{2, 4}}));
+    // Y[i][j] = sum_k A[i][k] * B[j][k] + C[j].
+    const float expected[8] = {1.5f, 1.0f, 5.0f, 15.0f,
+                               4.5f, 4.0f, 8.0f, 33.0f};
+    for (std::size_t i = 0; i < 8; ++i) {
+        EXPECT_NEAR(out[0].data<float>()[i], expected[i], 1e-5f);
+    }
+}
+
+TEST(TraditionalOpsTest, GemmSupportsTransposeAAndBiasBroadcast) {
+    // Physical A [3,2] with transA=1 is logically [2,3]; B is [3,3], so M=2 and
+    // N=3 keep the [M] and [N] bias forms unambiguous.
+    const float a_data[6] = {1, 4, 2, 5, 3, 6};
+    const float b_data[9] = {1, 0, 0, 0, 1, 0, 1, 1, 1};
+    auto a = make_tensor(Shape{{3, 2}}, a_data);
+    auto b = make_tensor(Shape{{3, 3}}, b_data);
+    ExecutionContext ctx = make_context();
+
+    const auto run = [&](std::vector<int64_t> c_shape,
+                         const std::vector<float>& c_values, double alpha,
+                         double beta) {
+        GemmOp op;
+        Attrs attrs;
+        attrs["transA"] = static_cast<int64_t>(1);
+        attrs["alpha"] = alpha;
+        attrs["beta"] = beta;
+        EXPECT_TRUE(op.configure(attrs).has_value());
+        auto c = make_tensor(Shape{std::move(c_shape)}, c_values.data());
+        std::vector<Tensor*> inputs{&a, &b, &c};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        EXPECT_TRUE(op.forward(inputs, outputs, ctx).has_value());
+        return out[0];
+    };
+
+    // C broadcast per row [M], alpha=2, beta=0.5.
+    Tensor row = run({2}, {2.0f, 3.0f}, 2.0, 0.5);
+    ASSERT_EQ(row.shape, (Shape{{2, 3}}));
+    const float row_expected[6] = {9.0f, 11.0f, 7.0f,
+                                   21.5f, 23.5f, 13.5f};
+    for (std::size_t i = 0; i < 6; ++i) {
+        EXPECT_NEAR(row.data<float>()[i], row_expected[i], 1e-5f);
+    }
+
+    // C broadcast per column [N].
+    Tensor column = run({3}, {1.0f, 2.0f, 3.0f}, 1.0, 1.0);
+    ASSERT_EQ(column.shape, (Shape{{2, 3}}));
+    const float column_expected[6] = {5.0f, 7.0f, 6.0f,
+                                      11.0f, 13.0f, 9.0f};
+    for (std::size_t i = 0; i < 6; ++i) {
+        EXPECT_NEAR(column.data<float>()[i], column_expected[i], 1e-5f);
+    }
+
+    // Scalar C broadcast.
+    Tensor scalar = run({1}, {5.0f}, 1.0, 1.0);
+    ASSERT_EQ(scalar.shape, (Shape{{2, 3}}));
+    const float scalar_expected[6] = {9.0f, 10.0f, 8.0f,
+                                      15.0f, 16.0f, 11.0f};
+    for (std::size_t i = 0; i < 6; ++i) {
+        EXPECT_NEAR(scalar.data<float>()[i], scalar_expected[i], 1e-5f);
+    }
+
+    // Full [M,N] bias.
+    Tensor full = run({2, 3}, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f}, 1.0,
+                      1.0);
+    ASSERT_EQ(full.shape, (Shape{{2, 3}}));
+    const float full_expected[6] = {5.0f, 7.0f, 6.0f,
+                                    14.0f, 16.0f, 12.0f};
+    for (std::size_t i = 0; i < 6; ++i) {
+        EXPECT_NEAR(full.data<float>()[i], full_expected[i], 1e-5f);
+    }
+}
+
+TEST(TraditionalOpsTest, GemmRejectsInvalidInputs) {
+    GemmOp op;
+    Attrs attrs;
+    attrs["transB"] = static_cast<int64_t>(1);
+    ASSERT_TRUE(op.configure(attrs).has_value());
+
+    const float a_data[6] = {1, 2, 3, 4, 5, 6};
+    const float b_data[12] = {1, 0, 0, 0, 1, 0, 0, 0, 1, 2, 2, 2};
+    auto a = make_tensor(Shape{{2, 3}}, a_data);
+    auto b = make_tensor(Shape{{4, 3}}, b_data);
+    ExecutionContext ctx = make_context();
+    std::vector<Tensor> out(1);
+    std::vector<Tensor*> outputs{&out[0]};
+
+    auto b_bad = make_tensor(Shape{{4, 2}}, b_data);
+    std::vector<Tensor*> mismatch{&a, &b_bad};
+    EXPECT_EQ(op.forward(mismatch, outputs, ctx).error().code,
+              Error::Code::InvalidArgument);
+
+    const float c_bad_data[3] = {1.0f, 2.0f, 3.0f};
+    auto c_bad = make_tensor(Shape{{3}}, c_bad_data);
+    std::vector<Tensor*> bad_bias{&a, &b, &c_bad};
+    EXPECT_EQ(op.forward(bad_bias, outputs, ctx).error().code,
+              Error::Code::InvalidArgument);
+
+    auto half = a;
+    half.dtype = DType::F16;
+    std::vector<Tensor*> half_inputs{&half, &b};
+    EXPECT_EQ(op.forward(half_inputs, outputs, ctx).error().code,
+              Error::Code::Unsupported);
+
+    std::vector<Tensor*> too_few{&a};
+    EXPECT_EQ(op.forward(too_few, outputs, ctx).error().code,
+              Error::Code::InvalidArgument);
+}
+
+TEST(TraditionalOpsTest, FlattenReshapeTransposePreserveValues) {
+    std::vector<float> values(12);
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        values[i] = static_cast<float>(i);
+    }
+    auto x = make_tensor(Shape{{2, 3, 2}}, values.data());
+    ExecutionContext ctx = make_context();
+
+    // Flatten axis=1 on [2,3,2] -> [2,6].
+    FlattenOp flatten;
+    ASSERT_TRUE(flatten.configure(Attrs{}).has_value());
+    {
+        std::vector<Tensor*> inputs{&x};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(flatten.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{2, 6}}));
+        for (std::size_t i = 0; i < values.size(); ++i) {
+            EXPECT_FLOAT_EQ(out[0].data<float>()[i], values[i]);
+        }
+    }
+
+    // Flatten with a negative axis: -1 on [2,3,2] -> [6,2].
+    FlattenOp flatten_negative;
+    Attrs negative_axis;
+    negative_axis["axis"] = static_cast<int64_t>(-1);
+    ASSERT_TRUE(flatten_negative.configure(negative_axis).has_value());
+    {
+        std::vector<Tensor*> inputs{&x};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(flatten_negative.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{6, 2}}));
+        for (std::size_t i = 0; i < values.size(); ++i) {
+            EXPECT_FLOAT_EQ(out[0].data<float>()[i], values[i]);
+        }
+    }
+
+    // Reshape [2,3,2] with shape {3,-1} -> [3,4].
+    ReshapeOp reshape;
+    Attrs shape_attrs;
+    shape_attrs["shape"] = std::vector<int64_t>{3, -1};
+    ASSERT_TRUE(reshape.configure(shape_attrs).has_value());
+    {
+        std::vector<Tensor*> inputs{&x};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(reshape.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{3, 4}}));
+        for (std::size_t i = 0; i < values.size(); ++i) {
+            EXPECT_FLOAT_EQ(out[0].data<float>()[i], values[i]);
+        }
+    }
+
+    // Reshape from an input shape tensor with a 0 copy-dim: {0,-1} -> [2,6].
+    ReshapeOp reshape_input;
+    ASSERT_TRUE(reshape_input.configure(Attrs{}).has_value());
+    const float shape_data[2] = {0.0f, -1.0f};
+    auto shape_tensor = make_tensor(Shape{{2}}, shape_data);
+    {
+        std::vector<Tensor*> inputs{&x, &shape_tensor};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(reshape_input.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{2, 6}}));
+        for (std::size_t i = 0; i < values.size(); ++i) {
+            EXPECT_FLOAT_EQ(out[0].data<float>()[i], values[i]);
+        }
+    }
+
+    // Transpose perm {1,0,2} on [2,3,2] -> [3,2,2].
+    TransposeOp transpose;
+    Attrs perm_attrs;
+    perm_attrs["perm"] = std::vector<int64_t>{1, 0, 2};
+    ASSERT_TRUE(transpose.configure(perm_attrs).has_value());
+    {
+        std::vector<Tensor*> inputs{&x};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(transpose.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{3, 2, 2}}));
+        for (int64_t a = 0; a < 3; ++a) {
+            for (int64_t b = 0; b < 2; ++b) {
+                for (int64_t c = 0; c < 2; ++c) {
+                    const std::size_t out_index = static_cast<std::size_t>(
+                        (a * 2 + b) * 2 + c);
+                    const std::size_t in_index = static_cast<std::size_t>(
+                        (b * 3 + a) * 2 + c);
+                    EXPECT_FLOAT_EQ(out[0].data<float>()[out_index],
+                                    values[in_index]);
+                }
+            }
+        }
+    }
+
+    // Transpose without perm reverses every axis.
+    TransposeOp reverse;
+    ASSERT_TRUE(reverse.configure(Attrs{}).has_value());
+    {
+        std::vector<Tensor*> inputs{&x};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(reverse.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{2, 3, 2}}));
+        for (int64_t i = 0; i < 2; ++i) {
+            for (int64_t j = 0; j < 3; ++j) {
+                for (int64_t k = 0; k < 2; ++k) {
+                    const std::size_t out_index = static_cast<std::size_t>(
+                        (i * 3 + j) * 2 + k);
+                    const std::size_t in_index = static_cast<std::size_t>(
+                        (k * 3 + j) * 2 + i);
+                    EXPECT_FLOAT_EQ(out[0].data<float>()[out_index],
+                                    values[in_index]);
+                }
+            }
+        }
+    }
+}
+
+TEST(TraditionalOpsTest, LayoutOpsRejectInvalidArguments) {
+    std::vector<float> values(12);
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        values[i] = static_cast<float>(i);
+    }
+    auto x = make_tensor(Shape{{2, 3, 2}}, values.data());
+    ExecutionContext ctx = make_context();
+    std::vector<Tensor> out(1);
+    std::vector<Tensor*> outputs{&out[0]};
+    std::vector<Tensor*> inputs{&x};
+
+    FlattenOp bad_axis;
+    Attrs axis_attrs;
+    axis_attrs["axis"] = static_cast<int64_t>(4);
+    ASSERT_TRUE(bad_axis.configure(axis_attrs).has_value());
+    EXPECT_EQ(bad_axis.forward(inputs, outputs, ctx).error().code,
+              Error::Code::InvalidArgument);
+
+    FlattenOp bad_negative_axis;
+    Attrs negative_axis;
+    negative_axis["axis"] = static_cast<int64_t>(-4);
+    ASSERT_TRUE(bad_negative_axis.configure(negative_axis).has_value());
+    EXPECT_EQ(bad_negative_axis.forward(inputs, outputs, ctx).error().code,
+              Error::Code::InvalidArgument);
+
+    ReshapeOp bad_count;
+    Attrs count_attrs;
+    count_attrs["shape"] = std::vector<int64_t>{5, 5};
+    ASSERT_TRUE(bad_count.configure(count_attrs).has_value());
+    EXPECT_EQ(bad_count.forward(inputs, outputs, ctx).error().code,
+              Error::Code::InvalidArgument);
+
+    ReshapeOp missing_shape;
+    ASSERT_TRUE(missing_shape.configure(Attrs{}).has_value());
+    EXPECT_EQ(missing_shape.forward(inputs, outputs, ctx).error().code,
+              Error::Code::InvalidArgument);
+
+    ReshapeOp two_inferred;
+    Attrs inferred_attrs;
+    inferred_attrs["shape"] = std::vector<int64_t>{-1, -1};
+    ASSERT_TRUE(two_inferred.configure(inferred_attrs).has_value());
+    EXPECT_EQ(two_inferred.forward(inputs, outputs, ctx).error().code,
+              Error::Code::InvalidArgument);
+
+    TransposeOp wrong_perm_size;
+    Attrs short_perm;
+    short_perm["perm"] = std::vector<int64_t>{0, 1};
+    ASSERT_TRUE(wrong_perm_size.configure(short_perm).has_value());
+    EXPECT_EQ(wrong_perm_size.forward(inputs, outputs, ctx).error().code,
+              Error::Code::InvalidArgument);
+
+    TransposeOp duplicate_perm;
+    Attrs duplicate;
+    duplicate["perm"] = std::vector<int64_t>{0, 0, 2};
+    ASSERT_TRUE(duplicate_perm.configure(duplicate).has_value());
+    EXPECT_EQ(duplicate_perm.forward(inputs, outputs, ctx).error().code,
+              Error::Code::InvalidArgument);
+
+    TransposeOp out_of_range;
+    Attrs range_attrs;
+    range_attrs["perm"] = std::vector<int64_t>{0, 1, 3};
+    ASSERT_TRUE(out_of_range.configure(range_attrs).has_value());
+    EXPECT_EQ(out_of_range.forward(inputs, outputs, ctx).error().code,
+              Error::Code::InvalidArgument);
+
+    auto half = x;
+    half.dtype = DType::F16;
+    std::vector<Tensor*> half_inputs{&half};
+    FlattenOp flatten;
+    ASSERT_TRUE(flatten.configure(Attrs{}).has_value());
+    EXPECT_EQ(flatten.forward(half_inputs, outputs, ctx).error().code,
+              Error::Code::Unsupported);
+}
+
 TEST(TraditionalOpsTest, RegistryCreatesTraditionalOps) {
     auto& registry = OpRegistry::instance();
     register_builtin_ops(registry);
 
-    for (OpType type : {OpType::Conv2D, OpType::DepthwiseConv2D,
-                        OpType::MaxPool2D, OpType::AvgPool2D,
-                        OpType::GlobalAvgPool, OpType::BatchNorm}) {
+    for (OpType type :
+         {OpType::Conv2D, OpType::DepthwiseConv2D, OpType::MaxPool2D,
+          OpType::AvgPool2D, OpType::GlobalAvgPool, OpType::BatchNorm,
+          OpType::Gemm, OpType::Flatten, OpType::Reshape, OpType::Transpose}) {
         auto op = registry.create(type);
         ASSERT_TRUE(op.has_value());
         EXPECT_NE(op->get(), nullptr);
@@ -530,4 +852,16 @@ TEST(TraditionalOpsTest, RegistryCreatesTraditionalOps) {
     auto norm = registry.create(OpType::BatchNorm);
     ASSERT_TRUE(norm.has_value());
     EXPECT_NE(dynamic_cast<BatchNormOp*>(norm->get()), nullptr);
+    auto gemm = registry.create(OpType::Gemm);
+    ASSERT_TRUE(gemm.has_value());
+    EXPECT_NE(dynamic_cast<GemmOp*>(gemm->get()), nullptr);
+    auto flatten = registry.create(OpType::Flatten);
+    ASSERT_TRUE(flatten.has_value());
+    EXPECT_NE(dynamic_cast<FlattenOp*>(flatten->get()), nullptr);
+    auto reshape = registry.create(OpType::Reshape);
+    ASSERT_TRUE(reshape.has_value());
+    EXPECT_NE(dynamic_cast<ReshapeOp*>(reshape->get()), nullptr);
+    auto transpose = registry.create(OpType::Transpose);
+    ASSERT_TRUE(transpose.has_value());
+    EXPECT_NE(dynamic_cast<TransposeOp*>(transpose->get()), nullptr);
 }

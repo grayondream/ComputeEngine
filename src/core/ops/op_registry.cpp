@@ -7,6 +7,8 @@
 #include "core/ops/common/softmax_op.h"
 #include "ops/traditional/batch_norm_op.h"
 #include "ops/traditional/conv2d_op.h"
+#include "ops/traditional/gemm_op.h"
+#include "ops/traditional/layout_ops.h"
 #include "ops/traditional/pool_ops.h"
 
 namespace ie {
@@ -83,6 +85,14 @@ void register_builtin_ops(OpRegistry& registry) {
         [] { return std::make_unique<GlobalAvgPoolOp>(); }));
     ignore_exists(registry.register_op(
         OpType::BatchNorm, [] { return std::make_unique<BatchNormOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::Gemm, [] { return std::make_unique<GemmOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::Flatten, [] { return std::make_unique<FlattenOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::Reshape, [] { return std::make_unique<ReshapeOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::Transpose, [] { return std::make_unique<TransposeOp>(); }));
 }
 
 }  // namespace ie

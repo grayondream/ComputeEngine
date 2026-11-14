@@ -19,6 +19,8 @@ add_library(ie_core STATIC
     src/ops/traditional/conv2d_op.cpp
     src/ops/traditional/pool_ops.cpp
     src/ops/traditional/batch_norm_op.cpp
+    src/ops/traditional/gemm_op.cpp
+    src/ops/traditional/layout_ops.cpp
     src/models/traditional/onnx/onnx_wire.cpp
     src/models/traditional/onnx/onnx_loader.cpp
     src/converter/format_loader/format_loader.cpp

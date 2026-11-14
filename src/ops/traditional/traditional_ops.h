@@ -3,13 +3,16 @@
 #include "core/ops/unimplemented_op.h"
 #include "ops/traditional/batch_norm_op.h"
 #include "ops/traditional/conv2d_op.h"
+#include "ops/traditional/gemm_op.h"
+#include "ops/traditional/layout_ops.h"
 #include "ops/traditional/pool_ops.h"
 
 namespace ie {
 
 // Traditional model ops (docs/readme.md §3.6). Conv2D, DepthwiseConv2D,
-// MaxPool2D, AvgPool2D, GlobalAvgPool, and BatchNorm are implemented in their
-// own headers; the classes below remain P2b stubs.
+// MaxPool2D, AvgPool2D, GlobalAvgPool, BatchNorm, Gemm, Flatten, Reshape, and
+// Transpose are implemented in their own headers; the classes below remain P2b
+// stubs.
 
 class ConvTranspose2DOp final : public UnimplementedOp {
 public:
