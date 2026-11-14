@@ -1269,6 +1269,60 @@ TEST(TraditionalOpsTest, SliceHandlesNegativeEndsAndSteps) {
     Tensor beginning = run(to_beginning);
     ASSERT_EQ(beginning.shape, (Shape{{3, 4}}));
     expect_values(beginning, {9, 10, 11, 12, 5, 6, 7, 8, 1, 2, 3, 4});
+
+}
+
+TEST(TraditionalOpsTest, SliceClampsInt64Extremes) {
+    std::vector<float> values(12);
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        values[i] = static_cast<float>(i + 1);
+    }
+    auto x = make_tensor(Shape{{3, 4}}, values.data());
+    ExecutionContext ctx = make_context();
+
+    const auto run = [&](const Attrs& attrs) {
+        SliceOp op;
+        EXPECT_TRUE(op.configure(attrs).has_value());
+        std::vector<Tensor*> inputs{&x};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        EXPECT_TRUE(op.forward(inputs, outputs, ctx).has_value());
+        return out[0];
+    };
+
+    // INT64_MIN starts must saturate during negative-index normalization
+    // instead of overflowing before the clamp.
+    Attrs extreme_forward;
+    extreme_forward["starts"] =
+        std::vector<int64_t>{std::numeric_limits<int64_t>::min()};
+    extreme_forward["ends"] =
+        std::vector<int64_t>{std::numeric_limits<int64_t>::max()};
+    extreme_forward["axes"] = std::vector<int64_t>{0};
+    Tensor whole = run(extreme_forward);
+    ASSERT_EQ(whole.shape, (Shape{{3, 4}}));
+    expect_values(whole, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12});
+
+    Attrs extreme_reverse;
+    extreme_reverse["starts"] =
+        std::vector<int64_t>{std::numeric_limits<int64_t>::min()};
+    extreme_reverse["ends"] =
+        std::vector<int64_t>{std::numeric_limits<int64_t>::min()};
+    extreme_reverse["axes"] = std::vector<int64_t>{0};
+    extreme_reverse["steps"] = std::vector<int64_t>{-1};
+    Tensor first_row = run(extreme_reverse);
+    ASSERT_EQ(first_row.shape, (Shape{{1, 4}}));
+    expect_values(first_row, {1, 2, 3, 4});
+
+    Attrs near_min_reverse;
+    near_min_reverse["starts"] = std::vector<int64_t>{
+        std::numeric_limits<int64_t>::min() + 1};
+    near_min_reverse["ends"] = std::vector<int64_t>{
+        std::numeric_limits<int64_t>::min() + 2};
+    near_min_reverse["axes"] = std::vector<int64_t>{0};
+    near_min_reverse["steps"] = std::vector<int64_t>{-1};
+    Tensor near_min_first_row = run(near_min_reverse);
+    ASSERT_EQ(near_min_first_row.shape, (Shape{{1, 4}}));
+    expect_values(near_min_first_row, {1, 2, 3, 4});
 }
 
 TEST(TraditionalOpsTest, DataAndActivationOpsRejectInvalidArguments) {
@@ -1350,10 +1404,17 @@ TEST(TraditionalOpsTest, DataAndActivationOpsRejectInvalidArguments) {
 
         PadOp cropped_empty;
         Attrs cropped_attrs;
-        cropped_attrs["pads"] = std::vector<int64_t>{-4, 0};
+        // Rank 2 uses two begins followed by two ends; this crops axis 0 by 4
+        // and reaches the "empty output dimension" branch rather than the
+        // pads-length guard.
+        cropped_attrs["pads"] = std::vector<int64_t>{-4, 0, 0, 0};
         ASSERT_TRUE(cropped_empty.configure(cropped_attrs).has_value());
-        EXPECT_EQ(cropped_empty.forward(inputs, outputs, ctx).error().code,
+        auto cropped_status = cropped_empty.forward(inputs, outputs, ctx);
+        ASSERT_FALSE(cropped_status.has_value());
+        EXPECT_EQ(cropped_status.error().code,
                   Error::Code::InvalidArgument);
+        EXPECT_EQ(cropped_status.error().message,
+                  "Pad crops the input to an empty dimension");
 
         PadOp reflect;
         Attrs reflect_attrs;

@@ -114,6 +114,20 @@ Status resolve_axis(int64_t axis, int64_t rank, int64_t& normalized) {
     return {};
 }
 
+// Normalizes a negative Slice index by adding the dimension. Values so small
+// that the addition would overflow are saturated at INT64_MIN; the subsequent
+// clamp moves them into range.
+int64_t normalize_negative_index(int64_t value, int64_t dim) {
+    if (value >= 0) {
+        return value;
+    }
+    const int64_t minimum = std::numeric_limits<int64_t>::min();
+    if (value < minimum + dim) {
+        return minimum;
+    }
+    return value + dim;
+}
+
 Status require_positive_dims(const std::vector<int64_t>& dims,
                              const char* op_name) {
     if (dims.empty()) {
@@ -399,14 +413,8 @@ Status SliceOp::forward(const std::vector<Tensor*>& inputs,
             return Error::invalid_argument(
                 "Slice step must be non-zero");
         }
-        int64_t start = starts[i];
-        int64_t end = ends[i];
-        if (start < 0) {
-            start += dim;
-        }
-        if (end < 0) {
-            end += dim;
-        }
+        int64_t start = normalize_negative_index(starts[i], dim);
+        int64_t end = normalize_negative_index(ends[i], dim);
 
         int64_t length = 0;
         if (step > 0) {
