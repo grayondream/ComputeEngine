@@ -62,7 +62,8 @@
 ## P2a 传统推理(进行中)
 - [x] Task 1 IR 常量权重与属性数组(`74344fd`):`Graph::weights`、`AttrValue` 向量分支、`OpType::Flatten`、`Executor` 权重注入
 - [x] Task 2 最小 ONNX wire parser 与 OnnxLoader(`bc3bbb2`):仓库内 protobuf wire 解析、`load_onnx_model` 转 `Graph`、initializer/Constant 折叠为 `Graph::weights`、`OnnxMapping` 白名单、`tiny_add.onnx` fixture
-- [ ] Task 3+ 见 `.superpowers/sdd/2026-11-14-p2a-traditional-inference/`
+- [x] Task 3 Conv2D / DepthwiseConv2D / BatchNorm / MaxPool2D / AvgPool2D / GlobalAvgPool(`b8397ae`):im2col + 行 GEMM(优先 `matmul_row`)、group/depthwise 校验、NCHW 池化(`ceil_mode`/`count_include_pad`/`auto_pad`)、注册 6 个算子;stub 契约 33→27
+- [ ] Task 4+ 见 `.superpowers/sdd/2026-11-14-p2a-traditional-inference/`
 
 ## 后续
 - [ ] 每个里程碑实现时:对照「决策点」节,从默认建议起步,裁定后回写 Spec/台账

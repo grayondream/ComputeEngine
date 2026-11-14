@@ -178,3 +178,14 @@
 - fixture:`tests/reference/gen_onnx_fixtures.py` 生成并提交 `tests/data/tiny_add.onnx`;测试包含 tiny_add 成功、截断/缺失文件、畸形 wire、未知 dtype、packed 属性、Constant 折叠 + INT64 转 F32、`OnnxMapping` 白名单。
 - 验证:TDD RED(CMake 找不到新增 `.cpp`)→ GREEN;聚焦 13 项通过;全量 `ctest` **163/163** 通过(性能用例 skip);`--clean-first` 重建 `-Wall -Wextra -Wpedantic` 零告警。
 - 复审修复:`TensorProto` 字段号修正(`raw_data=9`、`double_data=10`、跳过 `uint64_data=11`)、`ints/floats` 多次 wire 出现追加合并、`data_type > UINT32_MAX` 拒绝;新增 raw/typed payload、packed/unpacked 属性、Reduce `reduce_mode`、空 optional name、initializer-as-input 回归;聚焦 17 项、全量 `ctest` **167/167** 通过,零告警。
+
+### 2026-11-14 · P2a Task 3 Conv2D / DepthwiseConv2D / BatchNorm / 池化 ✅
+- 提交 `b8397ae`;新增 `src/ops/traditional/` 下 `conv2d_op.h/.cpp`、`pool_ops.h/.cpp`、`batch_norm_op.h/.cpp`,以及内部属性工具 `attrs_util.h`(int/float/string/int-list 读取、`auto_pad` 解析、2/4 元素 `pads` 归一化、SAME 填充与 `ceil_div`)。
+- `Conv2DOp`/`DepthwiseConv2DOp`:NCHW F32,权重 `[M, C/group, kH, kW]`,bias `[M]` 可选;校验 group 整除、`weight[1] == C/group`、depthwise `group == C`、`kernel_shape` 与权重一致;输出 `Hout=(H+pt+pb-dH*(kH-1)-1)/sH+1`;按 group 做 im2col(越界填 0)后调用注入的 `matmul_row`,无注入时用本地标量行循环;bias 在行结果上累加。
+- `BatchNormOp`:`[x, scale, bias, mean, var]`,`epsilon` 默认 `1e-5`,`y = x*scale*inv + (bias - mean*scale*inv)`,`inv=1/sqrt(var+epsilon)`;支持 rank≥2(NCHW 通道维为 1)。
+- `MaxPool2DOp`/`AvgPool2DOp`:`kernel_shape` 必填,`strides` 默认 `{1,1}`,支持 `pads`/`ceil_mode`/`auto_pad`;Max 以 `-inf` 初始化并忽略填充;Avg 分母按 `count_include_pad`(含填充时裁剪到声明填充区)且空分母输出 0;ceil_mode 末尾窗口起点落入填充区时丢弃。
+- `GlobalAvgPoolOp`:`[N,C,H,W]` → `[N,C,1,1]` 按 `(n,c)` 求均值。`register_builtin_ops` 注册 6 个算子;`traditional_ops.h` 改为伞形头(实现类移出,`ConvTranspose2D/LayerNorm/GroupNorm/LSTM/GRU/RNN/Upsample/Pad/Clip/Sigmoid/Tanh/GBDT*` 仍为 `UnimplementedOp`);`ops_families_contract_test` stub 数 33→27。
+- 黄金数据:`tests/reference/gen_traditional_fixtures.py`(PyTorch 2.15,seed `20261114`,float32)生成并提交 `tests/data/traditional_reference.h`(Conv/BN/MaxPool/AvgPool/GlobalAvgPool/Depthwise),连续两次生成哈希一致;测试只 include,不运行 Python。
+- 验证:TDD RED(新头文件缺失导致 `ie_tests` 编译失败);修复 BatchNorm 平移项漏乘 `scale` 后 GREEN;聚焦 `TraditionalOpsTest.*:OpsFamiliesTest.*` **17/17**;全量 `ctest` **183/183** 通过(性能用例按设计 skip);`--clean-first` 全目标重建 `warning:`/`error:` 计数均为 0。
+- 附带修改:`tests/ops/ops_test.cpp` 的 "未注册算子" 用例由 `Conv2D` 改为仍属 P2b 的 `LSTM`(Conv2D 现已注册)。
+- 已知限制:卷积与池化保持串行(不消费 `thread_pool`),以逐字节确定性优先;`count_include_pad=1` 的分母裁剪到声明填充范围;空洞仅由 `dilations` 属性驱动,无额外优化路径。
