@@ -218,3 +218,9 @@
 - 测试:新增简报要求的 3 项直接张量断言,并补充非法参数与注册表测试;`ops_families_contract_test` stub 数 27→22(保留 ConvTranspose2D/LayerNorm/GroupNorm/LSTM/GRU/RNN/GBDT*)。
 - 验证:TDD RED(新头文件缺失导致编译失败)→ GREEN;聚焦 `TraditionalOpsTest.*:OpsFamiliesTest.*` **30/30**;全量 `ctest` **196/196** 通过(性能用例按设计 skip);`--clean-first` 全目标重建 `warning:`/`error:` 均为 0;ASan/UBSan 聚焦 **30/30** 通过。
 - 已知限制:`Tensor` 不支持零尺寸/rank-0 标量,空 Slice/Pad 输出返回 `InvalidArgument`,`keepdims=0` 全归约以 `[1]` 表示;形状/索引张量按 F32 截断;`Pad` 仅支持 axes 输入不支持 axes attr;`Upsample` 接受任意正 scale;Gather 不支持 rank-0 indices;Sigmoid/Tanh 未接 SIMD。
+
+### 2026-11-14 · P2a Task 5 复审修复：Slice int64 饱和归一化与 Pad 裁剪测试 ✅
+- `data_ops.cpp`:负 `starts/ends` 归一化改为饱和 helper(`value < INT64_MIN + dim` 时取 `INT64_MIN`,否则 `value + dim`),消除极端 int64 属性下加法溢出风险,后续 clamp 再落入合法区间。
+- 新增 `TraditionalOpsTest.SliceClampsInt64Extremes`:覆盖 `INT64_MIN`/近极小值 starts/ends 的正向与负步长切片,断言精确输出;RED 用故意非饱和变异触发 UBSan `signed integer overflow`,修复后 GREEN。
+- `cropped_empty` 改用 rank-2 `pads={-4,0,0,0}` 命中 `out_dim <= 0` 裁剪分支,并断言错误消息 `"Pad crops the input to an empty dimension"`。
+- 验证:聚焦 `TraditionalOpsTest.*:OpsFamiliesTest.*` **31/31**;ASan/UBSan 聚焦 **31/31**;全量 `ctest` **197/197** 通过。
