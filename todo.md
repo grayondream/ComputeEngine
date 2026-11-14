@@ -64,7 +64,8 @@
 - [x] Task 2 最小 ONNX wire parser 与 OnnxLoader(`bc3bbb2`):仓库内 protobuf wire 解析、`load_onnx_model` 转 `Graph`、initializer/Constant 折叠为 `Graph::weights`、`OnnxMapping` 白名单、`tiny_add.onnx` fixture
 - [x] Task 3 Conv2D / DepthwiseConv2D / BatchNorm / MaxPool2D / AvgPool2D / GlobalAvgPool(`b8397ae`):im2col + 行 GEMM(优先 `matmul_row`)、group/depthwise 校验、NCHW 池化(`ceil_mode`/`count_include_pad`/`auto_pad`)、注册 6 个算子;stub 契约 33→27
 - [x] Task 4 Gemm / Flatten / Reshape / Transpose(`82fd3dd`):`gemm_op.h/.cpp`、`layout_ops.h/.cpp`、4 个算子注册、Gemm 偏置广播与转置、Flatten 负 axis、Reshape 0/-1 与 shape 输入、Transpose 默认反转与排列校验
-- [ ] Task 5+ 见 `.superpowers/sdd/2026-11-14-p2a-traditional-inference/`
+- [x] Task 5 Concat / Slice / Pad / Upsample / Gather / Reduce / Clip / Sigmoid / Tanh(`450be01`):`data_ops.h/.cpp`、`activation_ops.h/.cpp`、9 个算子注册、Slice 负步长/clamp、Pad 常量与负 pads、Reduce keepdims、stub 契约 27→22
+- [ ] Task 6+ 见 `.superpowers/sdd/2026-11-14-p2a-traditional-inference/`
 
 ## 后续
 - [ ] 每个里程碑实现时:对照「决策点」节,从默认建议起步,裁定后回写 Spec/台账

@@ -204,3 +204,17 @@
 - 补充 `TraditionalOpsTest.GemmWithoutBiasScalesByAlpha`(两输入、`alpha=2`、无 C,断言 `Y=2*A*B` 精确值)与 `ReshapeInputShapeTakesPrecedenceOverAttribute`(attr `{9,9}` + 输入 `{3,4}` 取输入形状;输入非法时即使 attr 合法也报错)。
 - TDD:临时把 Gemm 无 C 分支加 1、把 Reshape 改为优先 attr,两项新测试分别 RED;`git checkout` 恢复生产代码后 GREEN。
 - 验证:聚焦 `TraditionalOpsTest.*` **24/24**;全量 `ctest` **191/191** 通过。生产代码未变更,仅测试文件修改。
+
+### 2026-11-14 · P2a Task 5 Concat / Slice / Pad / Upsample / Gather / Reduce / Clip / Sigmoid / Tanh ✅
+- 提交 `450be01`;新增 `src/ops/traditional/data_ops.h/.cpp`(Concat/Slice/Pad/Upsample/Gather/Reduce/Clip)与 `activation_ops.h/.cpp`(Sigmoid/Tanh);`traditional_ops.h` 伞形头纳入两文件并移除已实现 stub;`register_builtin_ops` 注册 9 个算子;`ie_core` 增加两个 `.cpp`。
+- `ConcatOp`:校验同 rank、除 axis 外各维一致,支持负 axis,按 outer/axis/inner 三块连续拷贝。
+- `SliceOp`:支持 attr `starts/ends/axes/steps` 与 opset 10+ inputs[1..4](F32 截断转 int64、有限性/范围校验);负 axes/starts/ends 归一化,按 ONNX 规则 clamp,支持负 step(含极大负 end);元素级反算输入偏移。
+- `PadOp`:支持 attr `pads/value` 与 inputs[1..3](pads/value/axes),仅 `mode=constant`;负 pads 视为裁剪;按 `[begins..., ends...]` 解析。
+- `UpsampleOp`:支持 attr/input `scales`,仅 nearest、rank-4 NCHW,`out=floor(in*scale)`、`in_idx=floor(out_idx/scale)`。
+- `GatherOp`:负 axis/负 indices 归一化,越界拒绝;输出 `data[:axis]+indices.shape+data[axis+1:]`,按 index 块拷贝。
+- `ReduceOp`:`axes` 支持负值/去重、空或缺失表示全轴;`keepdims` 默认 1;`reduce_mode` 默认 `mean`,支持 `sum`。
+- `ClipOp`:attr `min/max` 或标量 inputs[1..2],允许缺省单边;`min>max`/NaN 拒绝。
+- `SigmoidOp`/`TanhOp`:逐元素 F32,同 shape;sigmoid 分正负分支避免指数溢出。
+- 测试:新增简报要求的 3 项直接张量断言,并补充非法参数与注册表测试;`ops_families_contract_test` stub 数 27→22(保留 ConvTranspose2D/LayerNorm/GroupNorm/LSTM/GRU/RNN/GBDT*)。
+- 验证:TDD RED(新头文件缺失导致编译失败)→ GREEN;聚焦 `TraditionalOpsTest.*:OpsFamiliesTest.*` **30/30**;全量 `ctest` **196/196** 通过(性能用例按设计 skip);`--clean-first` 全目标重建 `warning:`/`error:` 均为 0;ASan/UBSan 聚焦 **30/30** 通过。
+- 已知限制:`Tensor` 不支持零尺寸/rank-0 标量,空 Slice/Pad 输出返回 `InvalidArgument`,`keepdims=0` 全归约以 `[1]` 表示;形状/索引张量按 F32 截断;`Pad` 仅支持 axes 输入不支持 axes attr;`Upsample` 接受任意正 scale;Gather 不支持 rank-0 indices;Sigmoid/Tanh 未接 SIMD。
