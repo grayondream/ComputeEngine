@@ -65,7 +65,8 @@
 - [x] Task 3 Conv2D / DepthwiseConv2D / BatchNorm / MaxPool2D / AvgPool2D / GlobalAvgPool(`b8397ae`):im2col + 行 GEMM(优先 `matmul_row`)、group/depthwise 校验、NCHW 池化(`ceil_mode`/`count_include_pad`/`auto_pad`)、注册 6 个算子;stub 契约 33→27
 - [x] Task 4 Gemm / Flatten / Reshape / Transpose(`82fd3dd`):`gemm_op.h/.cpp`、`layout_ops.h/.cpp`、4 个算子注册、Gemm 偏置广播与转置、Flatten 负 axis、Reshape 0/-1 与 shape 输入、Transpose 默认反转与排列校验
 - [x] Task 5 Concat / Slice / Pad / Upsample / Gather / Reduce / Clip / Sigmoid / Tanh(`450be01`):`data_ops.h/.cpp`、`activation_ops.h/.cpp`、9 个算子注册、Slice 负步长/clamp、Pad 常量与负 pads、Reduce keepdims、stub 契约 27→22;复审修复 Slice int64 饱和归一化与 Pad 裁剪测试
-- [ ] Task 6+ 见 `.superpowers/sdd/2026-11-14-p2a-traditional-inference/`
+- [x] Task 6 TraditionalEngine + tiny CNN 端到端(`50a301a`):`traditional_engine.h/.cpp` 持 `unique_ptr<Engine>`、ONNX 输入按图序绑定、首输出返回、逐样本 batch;`tiny_cnn.onnx` + `tiny_cnn_reference.h` fixture(ORT logits);契约测试同步改为未加载语义
+- [ ] Task 7+ 见 `.superpowers/sdd/2026-11-14-p2a-traditional-inference/`
 
 ## 后续
 - [ ] 每个里程碑实现时:对照「决策点」节,从默认建议起步,裁定后回写 Spec/台账

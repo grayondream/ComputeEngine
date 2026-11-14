@@ -224,3 +224,13 @@
 - 新增 `TraditionalOpsTest.SliceClampsInt64Extremes`:覆盖 `INT64_MIN`/近极小值 starts/ends 的正向与负步长切片,断言精确输出;RED 用故意非饱和变异触发 UBSan `signed integer overflow`,修复后 GREEN。
 - `cropped_empty` 改用 rank-2 `pads={-4,0,0,0}` 命中 `out_dim <= 0` 裁剪分支,并断言错误消息 `"Pad crops the input to an empty dimension"`。
 - 验证:聚焦 `TraditionalOpsTest.*:OpsFamiliesTest.*` **31/31**;ASan/UBSan 聚焦 **31/31**;全量 `ctest` **197/197** 通过。
+
+### 2026-11-14 · P2a Task 6 TraditionalEngine + tiny CNN 端到端 ✅
+- 提交 `50a301a`;`TraditionalEngine` 由 P0.5 内联 stub 改为持有 `std::unique_ptr<Engine>`(前向声明 `Engine`,析构/移动在 `.cpp` 定义,删除拷贝);新增 `src/engine/traditional/traditional_engine.cpp` 加入 `ie_cpu`。
+- `load_model`:仅接受 `ModelFormat::ONNX`,其余 `Unsupported`;`load_onnx_model` 后按 `graph.values` 顺序收集 `is_input` 名称;构造 `Engine(EngineConfig{})` 并 `load(graph)`;成功后一次性替换 `engine_`/`input_names_`(失败不破坏已加载模型)。
+- `infer`:未加载或输入数量不符返回 `InvalidArgument`;按位置绑定到 `unordered_map<string, Tensor>`,调用 `Engine::infer`,取 `outputs[0]`;无输出返回 `InvalidArgument`。
+- `infer_batch`:逐样本调用 `infer`,同序返回;空 batch 返回空 vector;任一样本失败即返回该错误。
+- Fixture 生成器扩展 `TinyCnn`(1x3x8x8 → Conv 3→4 → BN → ReLU → MaxPool 2x2 → Conv 4→6 → ReLU → GAP → Flatten → Gemm 6→3),`opset 17`、`dynamo=False`、`do_constant_folding=False`;ORT `CPUExecutionProvider` 生成 logits 并与 torch 输出 `assert_allclose(1e-5)` 校验;专用 seed `20261115`;连续两次生成 `tiny_cnn.onnx`/`tiny_cnn_reference.h` 哈希一致。
+- 测试:`tests/runtime/traditional_engine_test.cpp` 4 项(端到端、重复 infer 权重存活、batch 与单样本一致/空 batch/非 ONNX、输入数量错误);`llm_contract_test.cpp` 中旧的 `DefaultsAreUnsupported` 改为 `UnloadedUseIsRejected`(未加载 `InvalidArgument`、空 batch 成功)。
+- 验证:TDD RED(4 项因 stub `Unsupported` 失败)→ GREEN;聚焦 `TraditionalEngineTest.*` **5/5**;全量 `ctest` **201/201** 通过(性能用例按设计 skip);端到端最大绝对误差 **1.19e-07**;全目标重建 `warning:`/`error:` 均为 0。
+- 已知限制:batch 为顺序循环而非融合批执行;fixture 使用 legacy TorchScript 导出器,依赖 torch 版本但已提交产物;生成器额外依赖 `onnx`/`onnxruntime`(仅生成期)。
