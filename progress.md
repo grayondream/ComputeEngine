@@ -169,3 +169,11 @@
 - `AttrValue` 追加 `std::vector<int64_t>`、`std::vector<double>` 两个 variant 分支(末尾追加,既有索引不变);`OpType::Flatten` 追加在 enum 末尾,既有枚举值不位移。
 - `Executor::run` 在读取输入前把 `graph.weights` 注入 `values`:未知权重名返回 `InvalidArgument`,与 input 同名的权重跳过(调用方输入优先);非 input 值缺权重仍由既有 "missing node input value" 返回 `InvalidArgument`。
 - 验证:TDD RED(缺 `Graph::weights`、vector variant 分支导致编译失败)→ GREEN;新增 3 项测试(`GraphWeightsTest` 2 项、`AttrValueTest` 1 项);全量 `ctest` **153/153** 通过;`-Wall -Wextra -Wpedantic` 全新构建零告警。
+
+### 2026-11-14 · P2a Task 2 最小 ONNX wire parser 与 OnnxLoader ✅
+- 提交 `bc3bbb2`;新增 `src/models/traditional/onnx` 下的 `onnx_wire.h/.cpp` 与 `onnx_loader.h/.cpp`,仓库内手写 protobuf wire 解析(wire type 0/1/2/5,未知字段跳过,截断/组类型/未知 dtype 返回 `InvalidArgument`,外部数据返回 `Unsupported`)。
+- `load_onnx_model`:读文件、解析、转 `Graph`;graph input/output/value_info/node 输入输出建 `Value`,initializer 与 `Constant` 节点折叠为 `Graph::weights`(F32、`MallocAllocator`、`MemoryKind::WEIGHT_CONST`,`is_input=false`),weight 的 Tensor owner 共享保持生命周期。
+- tensor 转换:FLOAT 用 `float_data`/`raw_data`,INT32/INT64/DOUBLE 逐元素转 F32;标量 `dims` 空存为 `Shape{{1}}`;其他 dtype/外部数据 `Unsupported`。`AttrValue` 映射 `f/i/s/ints/floats`;tensor 属性仅允许 Constant。
+- `OnnxMapping` 实现 25 个白名单 op(含 `Conv->Conv2D`、`Flatten`、`ReduceMean/ReduceSum->Reduce`);`OnnxLoader::load` 委托 `load_onnx_model`。为白名单补 `OpType::Gemm`(enum 末尾追加,既有值不变)。
+- fixture:`tests/reference/gen_onnx_fixtures.py` 生成并提交 `tests/data/tiny_add.onnx`;测试包含 tiny_add 成功、截断/缺失文件、畸形 wire、未知 dtype、packed 属性、Constant 折叠 + INT64 转 F32、`OnnxMapping` 白名单。
+- 验证:TDD RED(CMake 找不到新增 `.cpp`)→ GREEN;聚焦 13 项通过;全量 `ctest` **163/163** 通过(性能用例 skip);`--clean-first` 重建 `-Wall -Wextra -Wpedantic` 零告警。
