@@ -35,7 +35,8 @@ TEST(OpRegistryTest, RegistersActivationOpsIdempotently) {
 
 TEST(OpRegistryTest, UnknownOpReturnsNotFound) {
     auto& reg = OpRegistry::instance();
-    auto op = reg.create(OpType::Conv2D);
+    // LSTM stays unregistered until P2b.
+    auto op = reg.create(OpType::LSTM);
     ASSERT_FALSE(op.has_value());
     EXPECT_EQ(op.error().code, Error::Code::NotFound);
 }

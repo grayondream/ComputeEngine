@@ -8,6 +8,7 @@ add_executable(ie_tests
     ops/ops_test.cpp
     ops/activation_test.cpp
     ops/simd_kernels_test.cpp
+    ops/traditional_ops_test.cpp
     hardware/hardware_test.cpp
     hardware/cpu_kernel_catalog_test.cpp
     scheduler/scheduler_test.cpp

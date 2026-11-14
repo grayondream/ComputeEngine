@@ -16,6 +16,9 @@ add_library(ie_core STATIC
     src/core/scheduler/static_scheduler.cpp
     src/core/runtime/executor.cpp
     src/core/runtime/thread_pool.cpp
+    src/ops/traditional/conv2d_op.cpp
+    src/ops/traditional/pool_ops.cpp
+    src/ops/traditional/batch_norm_op.cpp
     src/models/traditional/onnx/onnx_wire.cpp
     src/models/traditional/onnx/onnx_loader.cpp
     src/converter/format_loader/format_loader.cpp

@@ -25,16 +25,8 @@ struct StubCase {
 const std::vector<StubCase>& AllStubCases() {
     static const std::vector<StubCase> cases = {
         // traditional
-        {"Conv2D", [] { return std::make_unique<Conv2DOp>(); }},
-        {"DepthwiseConv2D",
-         [] { return std::make_unique<DepthwiseConv2DOp>(); }},
         {"ConvTranspose2D",
          [] { return std::make_unique<ConvTranspose2DOp>(); }},
-        {"MaxPool2D", [] { return std::make_unique<MaxPool2DOp>(); }},
-        {"AvgPool2D", [] { return std::make_unique<AvgPool2DOp>(); }},
-        {"GlobalAvgPool",
-         [] { return std::make_unique<GlobalAvgPoolOp>(); }},
-        {"BatchNorm", [] { return std::make_unique<BatchNormOp>(); }},
         {"LayerNorm", [] { return std::make_unique<LayerNormOp>(); }},
         {"GroupNorm", [] { return std::make_unique<GroupNormOp>(); }},
         {"LSTM", [] { return std::make_unique<LSTMOp>(); }},
@@ -93,7 +85,7 @@ TEST(OpsFamiliesTest, AllStubsReturnExactUnsupportedMessage) {
     std::vector<Tensor*> out;
     ExecutionContext context;
 
-    ASSERT_EQ(AllStubCases().size(), 33u);
+    ASSERT_EQ(AllStubCases().size(), 27u);
     for (const StubCase& test_case : AllStubCases()) {
         SCOPED_TRACE(test_case.name);
         auto op = test_case.make();

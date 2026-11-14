@@ -1,44 +1,19 @@
 #pragma once
 
 #include "core/ops/unimplemented_op.h"
+#include "ops/traditional/batch_norm_op.h"
+#include "ops/traditional/conv2d_op.h"
+#include "ops/traditional/pool_ops.h"
 
 namespace ie {
 
-// Traditional model ops (docs/readme.md §3.6). P0.5 freezes the surface only.
-
-class Conv2DOp final : public UnimplementedOp {
-public:
-    Conv2DOp() : UnimplementedOp("Conv2D") {}
-};
-
-class DepthwiseConv2DOp final : public UnimplementedOp {
-public:
-    DepthwiseConv2DOp() : UnimplementedOp("DepthwiseConv2D") {}
-};
+// Traditional model ops (docs/readme.md §3.6). Conv2D, DepthwiseConv2D,
+// MaxPool2D, AvgPool2D, GlobalAvgPool, and BatchNorm are implemented in their
+// own headers; the classes below remain P2b stubs.
 
 class ConvTranspose2DOp final : public UnimplementedOp {
 public:
     ConvTranspose2DOp() : UnimplementedOp("ConvTranspose2D") {}
-};
-
-class MaxPool2DOp final : public UnimplementedOp {
-public:
-    MaxPool2DOp() : UnimplementedOp("MaxPool2D") {}
-};
-
-class AvgPool2DOp final : public UnimplementedOp {
-public:
-    AvgPool2DOp() : UnimplementedOp("AvgPool2D") {}
-};
-
-class GlobalAvgPoolOp final : public UnimplementedOp {
-public:
-    GlobalAvgPoolOp() : UnimplementedOp("GlobalAvgPool") {}
-};
-
-class BatchNormOp final : public UnimplementedOp {
-public:
-    BatchNormOp() : UnimplementedOp("BatchNorm") {}
 };
 
 class LayerNormOp final : public UnimplementedOp {

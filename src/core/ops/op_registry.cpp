@@ -5,6 +5,9 @@
 #include "core/ops/common/mul_op.h"
 #include "core/ops/common/relu_op.h"
 #include "core/ops/common/softmax_op.h"
+#include "ops/traditional/batch_norm_op.h"
+#include "ops/traditional/conv2d_op.h"
+#include "ops/traditional/pool_ops.h"
 
 namespace ie {
 
@@ -66,6 +69,20 @@ void register_builtin_ops(OpRegistry& registry) {
         OpType::Relu, [] { return std::make_unique<ReluOp>(); }));
     ignore_exists(registry.register_op(
         OpType::Softmax, [] { return std::make_unique<SoftmaxOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::Conv2D, [] { return std::make_unique<Conv2DOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::DepthwiseConv2D,
+        [] { return std::make_unique<DepthwiseConv2DOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::MaxPool2D, [] { return std::make_unique<MaxPool2DOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::AvgPool2D, [] { return std::make_unique<AvgPool2DOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::GlobalAvgPool,
+        [] { return std::make_unique<GlobalAvgPoolOp>(); }));
+    ignore_exists(registry.register_op(
+        OpType::BatchNorm, [] { return std::make_unique<BatchNormOp>(); }));
 }
 
 }  // namespace ie
