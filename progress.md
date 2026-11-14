@@ -189,3 +189,13 @@
 - 验证:TDD RED(新头文件缺失导致 `ie_tests` 编译失败);修复 BatchNorm 平移项漏乘 `scale` 后 GREEN;聚焦 `TraditionalOpsTest.*:OpsFamiliesTest.*` **17/17**;全量 `ctest` **183/183** 通过(性能用例按设计 skip);`--clean-first` 全目标重建 `warning:`/`error:` 计数均为 0。
 - 附带修改:`tests/ops/ops_test.cpp` 的 "未注册算子" 用例由 `Conv2D` 改为仍属 P2b 的 `LSTM`(Conv2D 现已注册)。
 - 已知限制:卷积与池化保持串行(不消费 `thread_pool`),以逐字节确定性优先;`count_include_pad=1` 的分母裁剪到声明填充范围;空洞仅由 `dilations` 属性驱动,无额外优化路径。
+
+### 2026-11-14 · P2a Task 4 Gemm / Flatten / Reshape / Transpose ✅
+- 提交 `82fd3dd`;新增 `src/ops/traditional/gemm_op.h/.cpp`、`layout_ops.h/.cpp`;`traditional_ops.h` 伞形头纳入 4 个实现;`register_builtin_ops` 注册 `OpType::Gemm/Flatten/Reshape/Transpose`;`ie_core` 增加两个 `.cpp`。
+- `GemmOp`:`Y = alpha * A' * B' + beta * C`,`alpha`/`beta` double 默认 1,`transA`/`transB` 默认 0 且仅接受 0/1;A/B 必须 2D,内部 K 对齐;`transB=0` 时走 `matmul_row`(注入优先,缺失时本地标量行核),`transA=1` 先拷贝逻辑行;`transB=1` 用显式 k 升序标量循环;偏置支持标量、`[N]`、`[M]`、`[M,1]`、`[1,N]`、`[M,N]`;`alpha` 只乘点积、`beta` 只乘 C。
+- `FlattenOp`:`axis` 默认 1,负值按 rank 归一化,允许 `[-rank, rank]`;输出 `[prod(before), prod(after)]`,行主序直接拷贝。
+- `ReshapeOp`:优先 `inputs[1]`(F32 逐元素转 int64,拒绝非有限/超范围值),否则 attr `shape`;`0` 复制同位置输入维、至多一个 `-1` 推断;元素数不匹配、复制维越界、非法负值、溢出、非具体输出均返回 `InvalidArgument`。
+- `TransposeOp`:`perm` 必须为 `[0, rank)` 的完整排列(负值/重复/越界拒绝);缺省反转全部维度;按输出线性索引反算输入偏移,元素数不变。
+- 验证:TDD RED(测试 include 的 `gemm_op.h`/`layout_ops.h` 不存在导致编译失败)→ GREEN;聚焦 `TraditionalOpsTest.*` **22/22**;全量 `ctest` **189/189** 通过(性能用例按设计 skip);`--clean-first` 全目标重建 `warning:`/`error:` 均为 0。
+- 裁定:rank-1 偏置在 `M == N` 时按 ONNX/numpy 尾部维度对齐优先解释为 `[N]`(列广播),仅当不匹配 N 时才按 `[M]`(行广播);测试用 `M != N` 明确覆盖四种广播形态。
+- 已知限制:形状张量按 F32 读取(与 Task 1/2 加载器一致),非整数 F32 截断为 int64;Gemm 的 `transB=1` 与 `transA=1` 路径为标量循环,未向量化;四算子均为 F32。
