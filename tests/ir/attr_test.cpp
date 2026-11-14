@@ -15,4 +15,8 @@ TEST(AttrValueTest, HoldsIntAndFloatLists) {
     ASSERT_NE(std::get_if<std::vector<int64_t>>(&attrs["pads"]), nullptr);
     ASSERT_NE(std::get_if<std::vector<double>>(&attrs["scales"]), nullptr);
     EXPECT_EQ(std::get<std::vector<int64_t>>(attrs["pads"])[2], 1);
+    const auto& scales = std::get<std::vector<double>>(attrs["scales"]);
+    ASSERT_EQ(scales.size(), 2u);
+    EXPECT_DOUBLE_EQ(scales[0], 1.5);
+    EXPECT_DOUBLE_EQ(scales[1], 1.5);
 }

@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "core/ir/graph_builder.h"
@@ -98,4 +99,64 @@ TEST(GraphWeightsTest, MissingWeightIsAnError) {
     auto out = executor.run(graph, {{"x", std::move(*input)}}, alloc);
     ASSERT_FALSE(out.has_value());
     EXPECT_EQ(out.error().code, Error::Code::InvalidArgument);
+}
+
+TEST(GraphWeightsTest, CallerInputWinsOverSameNamedWeight) {
+    auto alloc = std::make_shared<MallocAllocator>();
+
+    Graph graph;
+    Value x; x.id = 0; x.name = "x"; x.shape = Shape{{2}}; x.is_input = true;
+    Value y; y.id = 2; y.name = "y"; y.shape = Shape{{2}}; y.is_output = true;
+    graph.values = {x, y};
+
+    Node node; node.id = 0; node.op = OpType::Add; node.inputs = {0, 0};
+    node.outputs = {2}; graph.nodes.push_back(node);
+
+    // A weight with the same name as a caller-provided input must be ignored.
+    auto weight = Tensor::allocate(Shape{{2}}, DType::F32, alloc,
+                                   MemoryKind::WEIGHT_CONST);
+    ASSERT_TRUE(weight.has_value());
+    weight->data<float>()[0] = 100.0f;
+    weight->data<float>()[1] = 200.0f;
+    graph.weights.emplace("x", std::move(*weight));
+
+    auto input = Tensor::allocate(Shape{{2}}, DType::F32, alloc);
+    ASSERT_TRUE(input.has_value());
+    input->data<float>()[0] = 7.0f;
+    input->data<float>()[1] = 8.0f;
+
+    Executor executor;
+    auto out = executor.run(graph, {{"x", std::move(*input)}}, alloc);
+    ASSERT_TRUE(out.has_value());
+    // x + x == 14 / 16; the skipped weight would yield 200 / 400.
+    EXPECT_FLOAT_EQ(out->at(0).data<float>()[0], 14.0f);
+    EXPECT_FLOAT_EQ(out->at(0).data<float>()[1], 16.0f);
+}
+
+TEST(GraphWeightsTest, OrphanWeightNameIsAnError) {
+    auto alloc = std::make_shared<MallocAllocator>();
+
+    Graph graph;
+    Value x; x.id = 0; x.name = "x"; x.shape = Shape{{2}}; x.is_input = true;
+    Value y; y.id = 2; y.name = "y"; y.shape = Shape{{2}}; y.is_output = true;
+    graph.values = {x, y};
+
+    Node node; node.id = 0; node.op = OpType::Add; node.inputs = {0, 0};
+    node.outputs = {2}; graph.nodes.push_back(node);
+
+    auto weight = Tensor::allocate(Shape{{2}}, DType::F32, alloc,
+                                   MemoryKind::WEIGHT_CONST);
+    ASSERT_TRUE(weight.has_value());
+    graph.weights.emplace("ghost", std::move(*weight));
+
+    auto input = Tensor::allocate(Shape{{2}}, DType::F32, alloc);
+    ASSERT_TRUE(input.has_value());
+    input->data<float>()[0] = 7.0f;
+    input->data<float>()[1] = 8.0f;
+
+    Executor executor;
+    auto out = executor.run(graph, {{"x", std::move(*input)}}, alloc);
+    ASSERT_FALSE(out.has_value());
+    EXPECT_EQ(out.error().code, Error::Code::InvalidArgument);
+    EXPECT_NE(out.error().message.find("ghost"), std::string::npos);
 }
