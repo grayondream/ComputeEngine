@@ -139,10 +139,13 @@ TEST(ExperimentalLlmTest, DefaultsAreUnsupported) {
               Error::Code::Unsupported);
 }
 
-TEST(TraditionalEngineTest, DefaultsAreUnsupported) {
+TEST(TraditionalEngineTest, UnloadedUseIsRejected) {
     TraditionalEngine engine;
     EXPECT_EQ(engine.load_model("m", ModelFormat::ONNX).error().code,
-              Error::Code::Unsupported);
-    EXPECT_EQ(engine.infer({}).error().code, Error::Code::Unsupported);
-    EXPECT_EQ(engine.infer_batch({}).error().code, Error::Code::Unsupported);
+              Error::Code::InvalidArgument);
+    EXPECT_EQ(engine.infer({}).error().code, Error::Code::InvalidArgument);
+    // An empty batch is valid and produces no results.
+    auto empty = engine.infer_batch({});
+    ASSERT_TRUE(empty.has_value());
+    EXPECT_TRUE(empty->empty());
 }

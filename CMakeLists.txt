@@ -34,6 +34,7 @@ add_library(ie_cpu STATIC
     src/backends/cpu/kernels/cpu_kernel_catalog.cpp
     src/backends/cpu/simd/simd_kernels.cpp
     src/core/runtime/engine.cpp
+    src/engine/traditional/traditional_engine.cpp
     src/api/c_api/ie_c_api.cpp
 )
 target_link_libraries(ie_cpu PUBLIC ie_core)
