@@ -449,6 +449,48 @@ TEST(TraditionalOpsTest, PoolCeilModeAddsTrailingWindow) {
     EXPECT_NEAR(avg_out[0].data<float>()[8], 25.0f, 1e-6f);
 }
 
+TEST(TraditionalOpsTest, PoolSameUpperMatchesExplicitPads) {
+    auto x = ramp_tensor(3, 3);
+    ExecutionContext ctx = make_context();
+
+    const auto run = [&](const Attrs& attrs) {
+        MaxPool2DOp op;
+        EXPECT_TRUE(op.configure(attrs).has_value());
+        std::vector<Tensor*> inputs{&x};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        EXPECT_TRUE(op.forward(inputs, outputs, ctx).has_value());
+        return out[0];
+    };
+
+    Attrs same;
+    same["kernel_shape"] = std::vector<int64_t>{2, 2};
+    same["strides"] = std::vector<int64_t>{2, 2};
+    same["auto_pad"] = std::string("SAME_UPPER");
+    Attrs explicit_upper = same;
+    explicit_upper.erase("auto_pad");
+    explicit_upper["pads"] = std::vector<int64_t>{0, 0, 1, 1};
+    Attrs same_lower = same;
+    same_lower["auto_pad"] = std::string("SAME_LOWER");
+    Attrs explicit_lower = explicit_upper;
+    explicit_lower["pads"] = std::vector<int64_t>{1, 1, 0, 0};
+
+    Tensor upper = run(same);
+    Tensor upper_ref = run(explicit_upper);
+    ASSERT_EQ(upper.shape, upper_ref.shape);
+    ASSERT_EQ(upper.shape, (Shape{{1, 1, 2, 2}}));
+    for (std::size_t i = 0; i < 4; ++i) {
+        EXPECT_FLOAT_EQ(upper.data<float>()[i], upper_ref.data<float>()[i]);
+    }
+
+    Tensor lower = run(same_lower);
+    Tensor lower_ref = run(explicit_lower);
+    ASSERT_EQ(lower.shape, lower_ref.shape);
+    for (std::size_t i = 0; i < 4; ++i) {
+        EXPECT_FLOAT_EQ(lower.data<float>()[i], lower_ref.data<float>()[i]);
+    }
+}
+
 TEST(TraditionalOpsTest, PoolRequiresKernelShapeAndF32) {
     MaxPool2DOp op;
     EXPECT_EQ(op.configure(Attrs{}).error().code,
