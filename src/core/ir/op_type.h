@@ -77,6 +77,7 @@ enum class OpType {
 
     // Additional ops appended to keep existing numeric values stable.
     Flatten,
+    Gemm,
 };
 
 }  // namespace ie

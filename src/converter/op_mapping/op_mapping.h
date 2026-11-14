@@ -18,9 +18,7 @@ public:
 
 class OnnxMapping final : public OpMapping {
 public:
-    Result<OpType> map(std::string_view /*name*/) override {
-        return Error::unsupported("onnx op mapping not implemented in P0.5");
-    }
+    Result<OpType> map(std::string_view name) override;
 };
 
 class TfliteMapping final : public OpMapping {

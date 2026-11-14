@@ -36,12 +36,6 @@ TEST(ConverterContractsTest, DefaultsAreUnsupported) {
                   .error().code,
               Error::Code::Unsupported);
 
-    OnnxLoader loader;
-    EXPECT_EQ(loader.load("m", ModelLoaderConfig{}).error().code,
-              Error::Code::Unsupported);
-    OnnxMapping mapping;
-    EXPECT_EQ(mapping.map("Conv").error().code, Error::Code::Unsupported);
-
     Int8QuantPlugin quant;
     Tensor tensor;
     EXPECT_EQ(quant.quantize(tensor, QuantConfig{}).error().code,
@@ -67,8 +61,6 @@ TEST(ConverterContractsTest, AllModelConverterMethodsUnsupported) {
 
 TEST(ConverterContractsTest, AllFormatLoadersUnsupported) {
     expect_all_unsupported({
-        {"OnnxLoader",
-         [] { return OnnxLoader{}.load("m", ModelLoaderConfig{}).error().code; }},
         {"TfliteLoader",
          [] { return TfliteLoader{}.load("m", ModelLoaderConfig{}).error().code; }},
         {"CaffeLoader",
@@ -82,12 +74,26 @@ TEST(ConverterContractsTest, AllFormatLoadersUnsupported) {
 
 TEST(ConverterContractsTest, AllOpMappingsUnsupported) {
     expect_all_unsupported({
-        {"OnnxMapping", [] { return OnnxMapping{}.map("Conv").error().code; }},
         {"TfliteMapping", [] { return TfliteMapping{}.map("Conv").error().code; }},
         {"PyTorchMapping",
          [] { return PyTorchMapping{}.map("Conv").error().code; }},
         {"GgufMapping", [] { return GgufMapping{}.map("Conv").error().code; }},
     });
+}
+
+TEST(ConverterContractsTest, OnnxLoaderAndMappingAreImplemented) {
+    auto graph = OnnxLoader{}.load(
+        std::string(IE_TEST_DATA_DIR) + "/tiny_add.onnx", ModelLoaderConfig{});
+    ASSERT_TRUE(graph.has_value()) << graph.error().message;
+    ASSERT_EQ(graph->nodes.size(), 1u);
+    EXPECT_EQ(graph->nodes[0].op, OpType::Add);
+    ASSERT_EQ(graph->weights.count("w"), 1u);
+
+    OnnxMapping mapping;
+    EXPECT_EQ(*mapping.map("Conv"), OpType::Conv2D);
+    EXPECT_EQ(*mapping.map("Flatten"), OpType::Flatten);
+    EXPECT_EQ(mapping.map("DefinitelyNotAnOp").error().code,
+              Error::Code::Unsupported);
 }
 
 TEST(ConverterContractsTest, AllConversionValidatorStagesUnsupported) {

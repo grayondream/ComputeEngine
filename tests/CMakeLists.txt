@@ -16,6 +16,7 @@ add_executable(ie_tests
     runtime/thread_pool_test.cpp
     performance/matmul_benchmark_test.cpp
     plugin/plugin_test.cpp
+    models/onnx_loader_test.cpp
     interface/config_contract_test.cpp
     interface/compiler_tuning_contract_test.cpp
     interface/hybrid_runtime_contract_test.cpp
@@ -30,5 +31,7 @@ add_executable(ie_tests
 )
 target_link_libraries(ie_tests PRIVATE ie_cpu GTest::gtest_main)
 target_include_directories(ie_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(ie_tests PRIVATE
+    IE_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
 include(GoogleTest)
 gtest_discover_tests(ie_tests)

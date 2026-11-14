@@ -19,10 +19,8 @@ public:
 
 class OnnxLoader final : public FormatLoader {
 public:
-    Result<Graph> load(const std::string& /*path*/,
-                       const ModelLoaderConfig& /*config*/) override {
-        return Error::unsupported("onnx loader not implemented in P0.5");
-    }
+    Result<Graph> load(const std::string& path,
+                       const ModelLoaderConfig& config) override;
 };
 
 class TfliteLoader final : public FormatLoader {
