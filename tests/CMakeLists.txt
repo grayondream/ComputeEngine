@@ -1,6 +1,7 @@
 add_executable(ie_tests
     base/shape_test.cpp
     ir/graph_test.cpp
+    ir/attr_test.cpp
     memory/memory_test.cpp
     memory/cpu_allocator_test.cpp
     backend/backend_test.cpp

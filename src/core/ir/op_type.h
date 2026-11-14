@@ -74,6 +74,9 @@ enum class OpType {
     MSE,
     Dropout,
     SoftmaxCrossEntropy,
+
+    // Additional ops appended to keep existing numeric values stable.
+    Flatten,
 };
 
 }  // namespace ie

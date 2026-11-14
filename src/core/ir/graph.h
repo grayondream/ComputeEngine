@@ -15,6 +15,7 @@
 #include "core/ir/ids.h"
 #include "core/ir/model_kind.h"
 #include "core/ir/op_type.h"
+#include "core/memory/tensor.h"
 
 namespace ie {
 
@@ -76,6 +77,10 @@ public:
     std::vector<Node> nodes;
     std::vector<Value> values;
     std::vector<Edge> edges;
+    // Constant tensors (ONNX initializers / Constant nodes) keyed by value
+    // name. Tensors are held by value; a Tensor copy shares its buffer owner,
+    // so the graph keeps the storage alive for the executor.
+    std::unordered_map<std::string, Tensor> weights;
 
     std::vector<DynamicDim> dynamic_dims;
     ControlFlow control_flow;

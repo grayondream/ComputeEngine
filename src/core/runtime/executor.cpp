@@ -17,6 +17,17 @@ Result<std::vector<Tensor>> Executor::run(
     }
     std::unordered_map<ValueId, Tensor> values;
 
+    for (const auto& [name, tensor] : graph.weights) {
+        const Value* value = graph.find_value(name);
+        if (value == nullptr) {
+            return Error::invalid_argument("weight has no graph value: " + name);
+        }
+        if (value->is_input) {
+            continue;  // caller-provided input wins
+        }
+        values.emplace(value->id, tensor);
+    }
+
     for (const Value& value : graph.values) {
         if (!value.is_input) {
             continue;
