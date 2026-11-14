@@ -199,3 +199,8 @@
 - 验证:TDD RED(测试 include 的 `gemm_op.h`/`layout_ops.h` 不存在导致编译失败)→ GREEN;聚焦 `TraditionalOpsTest.*` **22/22**;全量 `ctest` **189/189** 通过(性能用例按设计 skip);`--clean-first` 全目标重建 `warning:`/`error:` 均为 0。
 - 裁定:rank-1 偏置在 `M == N` 时按 ONNX/numpy 尾部维度对齐优先解释为 `[N]`(列广播),仅当不匹配 N 时才按 `[M]`(行广播);测试用 `M != N` 明确覆盖四种广播形态。
 - 已知限制:形状张量按 F32 读取(与 Task 1/2 加载器一致),非整数 F32 截断为 int64;Gemm 的 `transB=1` 与 `transA=1` 路径为标量循环,未向量化;四算子均为 F32。
+
+### 2026-11-14 · P2a Task 4 复审修复：Gemm 无偏置与 Reshape 优先级测试 ✅
+- 补充 `TraditionalOpsTest.GemmWithoutBiasScalesByAlpha`(两输入、`alpha=2`、无 C,断言 `Y=2*A*B` 精确值)与 `ReshapeInputShapeTakesPrecedenceOverAttribute`(attr `{9,9}` + 输入 `{3,4}` 取输入形状;输入非法时即使 attr 合法也报错)。
+- TDD:临时把 Gemm 无 C 分支加 1、把 Reshape 改为优先 attr,两项新测试分别 RED;`git checkout` 恢复生产代码后 GREEN。
+- 验证:聚焦 `TraditionalOpsTest.*` **24/24**;全量 `ctest` **191/191** 通过。生产代码未变更,仅测试文件修改。

@@ -538,6 +538,30 @@ TEST(TraditionalOpsTest, GemmMatchesReferenceWithTransposeAndBias) {
     }
 }
 
+TEST(TraditionalOpsTest, GemmWithoutBiasScalesByAlpha) {
+    GemmOp op;
+    Attrs attrs;
+    attrs["alpha"] = 2.0;
+    ASSERT_TRUE(op.configure(attrs).has_value());
+
+    const float a_data[4] = {1, 2, 3, 4};
+    const float b_data[4] = {1, 0, 1, 2};
+    auto a = make_tensor(Shape{{2, 2}}, a_data);
+    auto b = make_tensor(Shape{{2, 2}}, b_data);
+    // No C input: the optional bias term must be omitted entirely.
+    std::vector<Tensor*> inputs{&a, &b};
+    std::vector<Tensor> out(1);
+    std::vector<Tensor*> outputs{&out[0]};
+    ExecutionContext ctx = make_context();
+    ASSERT_TRUE(op.forward(inputs, outputs, ctx).has_value());
+    ASSERT_EQ(out[0].shape, (Shape{{2, 2}}));
+    // Y = 2 * A * B, with no bias added.
+    const float expected[4] = {6.0f, 8.0f, 14.0f, 16.0f};
+    for (std::size_t i = 0; i < 4; ++i) {
+        EXPECT_FLOAT_EQ(out[0].data<float>()[i], expected[i]);
+    }
+}
+
 TEST(TraditionalOpsTest, GemmSupportsTransposeAAndBiasBroadcast) {
     // Physical A [3,2] with transA=1 is logically [2,3]; B is [3,3], so M=2 and
     // N=3 keep the [M] and [N] bias forms unambiguous.
@@ -754,6 +778,49 @@ TEST(TraditionalOpsTest, FlattenReshapeTransposePreserveValues) {
                 }
             }
         }
+    }
+}
+
+TEST(TraditionalOpsTest, ReshapeInputShapeTakesPrecedenceOverAttribute) {
+    std::vector<float> values(12);
+    for (std::size_t i = 0; i < values.size(); ++i) {
+        values[i] = static_cast<float>(i);
+    }
+    auto x = make_tensor(Shape{{2, 3, 2}}, values.data());
+    const float valid_shape_data[2] = {3.0f, 4.0f};
+    auto valid_shape = make_tensor(Shape{{2}}, valid_shape_data);
+    ExecutionContext ctx = make_context();
+
+    // The attribute alone would be invalid (81 elements); inputs[1] must win
+    // and produce [3,4].
+    ReshapeOp op;
+    Attrs attrs;
+    attrs["shape"] = std::vector<int64_t>{9, 9};
+    ASSERT_TRUE(op.configure(attrs).has_value());
+    {
+        std::vector<Tensor*> inputs{&x, &valid_shape};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        ASSERT_TRUE(op.forward(inputs, outputs, ctx).has_value());
+        ASSERT_EQ(out[0].shape, (Shape{{3, 4}}));
+        for (std::size_t i = 0; i < values.size(); ++i) {
+            EXPECT_FLOAT_EQ(out[0].data<float>()[i], values[i]);
+        }
+    }
+
+    // An invalid inputs[1] must fail even when the attribute is valid.
+    ReshapeOp valid_attr_op;
+    Attrs valid_attrs;
+    valid_attrs["shape"] = std::vector<int64_t>{3, 4};
+    ASSERT_TRUE(valid_attr_op.configure(valid_attrs).has_value());
+    const float invalid_shape_data[2] = {5.0f, 5.0f};
+    auto invalid_shape = make_tensor(Shape{{2}}, invalid_shape_data);
+    {
+        std::vector<Tensor*> inputs{&x, &invalid_shape};
+        std::vector<Tensor> out(1);
+        std::vector<Tensor*> outputs{&out[0]};
+        EXPECT_EQ(valid_attr_op.forward(inputs, outputs, ctx).error().code,
+                  Error::Code::InvalidArgument);
     }
 }
 
