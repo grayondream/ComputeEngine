@@ -234,3 +234,13 @@
 - 测试:`tests/runtime/traditional_engine_test.cpp` 4 项(端到端、重复 infer 权重存活、batch 与单样本一致/空 batch/非 ONNX、输入数量错误);`llm_contract_test.cpp` 中旧的 `DefaultsAreUnsupported` 改为 `UnloadedUseIsRejected`(未加载 `InvalidArgument`、空 batch 成功)。
 - 验证:TDD RED(4 项因 stub `Unsupported` 失败)→ GREEN;聚焦 `TraditionalEngineTest.*` **5/5**;全量 `ctest` **201/201** 通过(性能用例按设计 skip);端到端最大绝对误差 **1.19e-07**;全目标重建 `warning:`/`error:` 均为 0。
 - 已知限制:batch 为顺序循环而非融合批执行;fixture 使用 legacy TorchScript 导出器,依赖 torch 版本但已提交产物;生成器额外依赖 `onnx`/`onnxruntime`(仅生成期)。
+
+### 2026-11-14 · P2a Task 7 ResNet50 本地对齐 + 转换入口 ✅
+- 提交 `59496ad`;`ModelConverter::load_model` 由 P0.5 内联 stub 改为 `model_converter.cpp` 出行为:`ModelFormat::ONNX` → `load_onnx_model(path)`,其他格式(含默认 `CUSTOM`)返回 `Unsupported`;`convert_onnx_to_ie`/TFLite/GGUF/safetensors 转换入口保持 `Unsupported`(P2b)。`model_converter.cpp` 加入 `ie_core`。
+- `tests/interface/converter_contract_test.cpp`:`load_model` 从「全部方法 Unsupported」表移出;新增 `LoadModelRejectsNonOnnxFormats`(CUSTOM/TFLITE → `Unsupported`)与 `LoadModelLoadsOnnxFixture`(tiny_add → 1 个 `Add` 节点 + `w` 权重);其余 loader/mapping/validator 断言不变。
+- 新增 `tests/reference/gen_resnet50_onnx.py`:`torch.manual_seed(20261114)` + `torchvision.models.resnet50(weights=None).eval()`,全 1 `[1,3,224,224]`,`opset 17`/`dynamo=False`/`do_constant_folding=False` 导出到 `--out-dir`(默认 `/tmp/opencode/resnet50`),ORT `CPUExecutionProvider` 在同输入上产出 1000 维 float32 logits 二进制。脚本不提交生成物。
+- 导出期裁定:禁用常量折叠时 legacy 导出器用 200 个纯别名 `Identity` 节点复用相同常量(ResNet50 默认 BN 参数全等),而 P2a ONNX 白名单无 `Identity`;脚本在导出后把这些「initializer → initializer」的别名重写到源常量并删除节点(语义等价,ORT 复跑通过,`onnx.checker` 通过),避免为测试扩大算子范围。清理后图为 175 节点:Conv 53 / BatchNorm 53 / Relu 49 / Add 16 / MaxPool 1 / GlobalAveragePool 1 / Flatten 1 / Gemm 1。
+- 新增 `tests/runtime/resnet50_parity_test.cpp`:`IE_RESNET50_ONNX`/`IE_RESNET50_REFERENCE` 未设置时 `GTEST_SKIP`;全 1 输入经 `TraditionalEngine::load_model(..., ONNX)` + `infer`,逐元素比较 1000 logits(max abs err < 1e-3)并断言 argmax 相同;读取严格 1000×4 字节,无 Python/临时文件/网络。
+- 本地验证(Debug,`timeout 600`):ONNX 98MB;第 2 次独立生成目录与首次产物 SHA256 完全一致(onnx `6134a63d…`、bin `93edac7a…`);forward **3.17–3.46s**,整测试 **9.1–9.8s**(含 98MB 解析),max abs err **5.34e-05**(logit 306),Top-1 **306** 引擎/ORT 一致。
+- 验证:TDD RED(`LoadModelLoadsOnnxFixture` 因 stub 返回 `Unsupported` 失败)→ GREEN;聚焦 `ResNet50ParityTest.*:ConverterContractsTest.*` **3+8 项通过**(ResNet 未设 env 时 skip,设 env 时通过);全量 `ctest` **204/204**(ResNet 无 env skip、性能用例 skip),`--clean-first` 全目标 `warning:`/`error:` 均为 0。
+- 已知限制:ResNet50 产物仅本地生成、不入库,CI 无 env 时该用例 skip;Debug forward 约 3.5s 未做性能优化(im2col+行 GEMM、BN 未融合);脚本依赖 torch/torchvision/onnx/onnxruntime(仅生成期)。
