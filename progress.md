@@ -177,3 +177,4 @@
 - `OnnxMapping` 实现 25 个白名单 op(含 `Conv->Conv2D`、`Flatten`、`ReduceMean/ReduceSum->Reduce`);`OnnxLoader::load` 委托 `load_onnx_model`。为白名单补 `OpType::Gemm`(enum 末尾追加,既有值不变)。
 - fixture:`tests/reference/gen_onnx_fixtures.py` 生成并提交 `tests/data/tiny_add.onnx`;测试包含 tiny_add 成功、截断/缺失文件、畸形 wire、未知 dtype、packed 属性、Constant 折叠 + INT64 转 F32、`OnnxMapping` 白名单。
 - 验证:TDD RED(CMake 找不到新增 `.cpp`)→ GREEN;聚焦 13 项通过;全量 `ctest` **163/163** 通过(性能用例 skip);`--clean-first` 重建 `-Wall -Wextra -Wpedantic` 零告警。
+- 复审修复:`TensorProto` 字段号修正(`raw_data=9`、`double_data=10`、跳过 `uint64_data=11`)、`ints/floats` 多次 wire 出现追加合并、`data_type > UINT32_MAX` 拒绝;新增 raw/typed payload、packed/unpacked 属性、Reduce `reduce_mode`、空 optional name、initializer-as-input 回归;聚焦 17 项、全量 `ctest` **167/167** 通过,零告警。

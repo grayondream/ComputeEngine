@@ -3,6 +3,7 @@
 #include <bit>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <string>
 #include <utility>
@@ -301,6 +302,12 @@ Result<OnnxTensor> parse_tensor(std::span<const uint8_t> bytes) {
                 if (!value) {
                     return value.error();
                 }
+                if (*value >
+                    static_cast<uint64_t>(
+                        std::numeric_limits<uint32_t>::max())) {
+                    return Error::invalid_argument(
+                        "onnx: tensor data_type is out of range");
+                }
                 tensor.data_type = static_cast<int32_t>(*value);
                 break;
             }
@@ -337,7 +344,7 @@ Result<OnnxTensor> parse_tensor(std::span<const uint8_t> bytes) {
                 tensor.name = std::move(*name);
                 break;
             }
-            case 10: {
+            case 9: {
                 if (wire != 2) {
                     return Error::invalid_argument(
                         "onnx: tensor raw_data is not length-delimited");
@@ -349,10 +356,16 @@ Result<OnnxTensor> parse_tensor(std::span<const uint8_t> bytes) {
                 tensor.raw_data.assign(raw->begin(), raw->end());
                 break;
             }
-            case 11:
+            case 10:
                 if (auto status = read_repeated_double(reader, wire,
                                                        tensor.double_data);
                     !status) {
+                    return status.error();
+                }
+                break;
+            case 11:
+                // uint64_data is outside the supported F32 conversion subset.
+                if (auto status = reader.skip(wire); !status) {
                     return status.error();
                 }
                 break;
@@ -482,8 +495,15 @@ Result<OnnxAttribute> parse_attribute(std::span<const uint8_t> bytes) {
                     !status) {
                     return status.error();
                 }
-                attribute.value = std::vector<double>(floats.begin(),
-                                                     floats.end());
+                auto* existing =
+                    std::get_if<std::vector<double>>(&attribute.value);
+                if (existing == nullptr) {
+                    attribute.value = std::vector<double>{};
+                    existing =
+                        std::get_if<std::vector<double>>(&attribute.value);
+                }
+                existing->insert(existing->end(), floats.begin(),
+                                 floats.end());
                 attribute.has_value = true;
                 break;
             }
@@ -493,7 +513,15 @@ Result<OnnxAttribute> parse_attribute(std::span<const uint8_t> bytes) {
                     !status) {
                     return status.error();
                 }
-                attribute.value = std::move(values);
+                auto* existing =
+                    std::get_if<std::vector<int64_t>>(&attribute.value);
+                if (existing == nullptr) {
+                    attribute.value = std::vector<int64_t>{};
+                    existing =
+                        std::get_if<std::vector<int64_t>>(&attribute.value);
+                }
+                existing->insert(existing->end(), values.begin(),
+                                 values.end());
                 attribute.has_value = true;
                 break;
             }
