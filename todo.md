@@ -59,6 +59,10 @@
   - `ie_bench`(Ryzen 5 5600X,选中 `matmul_avx2`):64³ 标量 **3.66** → 选中 **23.28** GFLOPS;128³ **1.73** → **13.58**;256³ **1.59** → **11.71**
   - AVX-512:本机 Zen3 无 AVX-512,数值/性能用例 skip;内核参与编译,能力位分派用合成 profile 覆盖
 
+## P2a 传统推理(进行中)
+- [x] Task 1 IR 常量权重与属性数组(`74344fd`):`Graph::weights`、`AttrValue` 向量分支、`OpType::Flatten`、`Executor` 权重注入
+- [ ] Task 2+ 见 `.superpowers/sdd/2026-11-14-p2a-traditional-inference/`
+
 ## 后续
 - [ ] 每个里程碑实现时:对照「决策点」节,从默认建议起步,裁定后回写 Spec/台账
 - [ ] P2 起在 P0.5 冻结接口上继续增量实现(CPU/硬件探测已在 P1 完成)

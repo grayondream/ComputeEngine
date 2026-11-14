@@ -163,3 +163,9 @@
   - ReLU/Softmax 未并行化;仅 MatMul 在 `m*n*k >= 32768` 时按行并行(线程数与串行结果逐字节一致)。
   - VNNI/AMX/BF16/FP16 仅登记能力位,无 F32 内核;INT8/BF16 内核留待 dtype 里程碑;cost model 固定 1/2/4/8,实测微调留 P7。
   - `ThreadPool::parallel_for` 非重入;ARM 探测分支在 x86 主机仅编译未执行。
+
+### 2026-11-14 · P2a Task 1 IR 常量权重与属性数组 ✅
+- 提交 `74344fd`;`Graph` 增加 `std::unordered_map<std::string, Tensor> weights`(按值持有,Tensor 拷贝共享 owner,权重生命周期独立于 Executor 分配器);`graph.h` 引入 `core/memory/tensor.h`(无 include 环)。
+- `AttrValue` 追加 `std::vector<int64_t>`、`std::vector<double>` 两个 variant 分支(末尾追加,既有索引不变);`OpType::Flatten` 追加在 enum 末尾,既有枚举值不位移。
+- `Executor::run` 在读取输入前把 `graph.weights` 注入 `values`:未知权重名返回 `InvalidArgument`,与 input 同名的权重跳过(调用方输入优先);非 input 值缺权重仍由既有 "missing node input value" 返回 `InvalidArgument`。
+- 验证:TDD RED(缺 `Graph::weights`、vector variant 分支导致编译失败)→ GREEN;新增 3 项测试(`GraphWeightsTest` 2 项、`AttrValueTest` 1 项);全量 `ctest` **153/153** 通过;`-Wall -Wextra -Wpedantic` 全新构建零告警。
