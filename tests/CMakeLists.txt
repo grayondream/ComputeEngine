@@ -15,6 +15,7 @@ add_executable(ie_tests
     runtime/engine_e2e_test.cpp
     runtime/mlp_e2e_test.cpp
     runtime/traditional_engine_test.cpp
+    runtime/resnet50_parity_test.cpp
     runtime/thread_pool_test.cpp
     performance/matmul_benchmark_test.cpp
     plugin/plugin_test.cpp

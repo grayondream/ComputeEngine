@@ -26,6 +26,7 @@ add_library(ie_core STATIC
     src/models/traditional/onnx/onnx_wire.cpp
     src/models/traditional/onnx/onnx_loader.cpp
     src/converter/format_loader/format_loader.cpp
+    src/converter/model_converter.cpp
     src/converter/op_mapping/onnx_mapping.cpp
 )
 

@@ -44,7 +44,7 @@ TEST(ConverterContractsTest, DefaultsAreUnsupported) {
               Error::Code::Unsupported);
 }
 
-TEST(ConverterContractsTest, AllModelConverterMethodsUnsupported) {
+TEST(ConverterContractsTest, AllConversionPathsUnsupported) {
     expect_all_unsupported({
         {"convert_onnx_to_ie",
          [] { return ModelConverter::convert_onnx_to_ie("m.onnx", "m.ie").error().code; }},
@@ -54,9 +54,31 @@ TEST(ConverterContractsTest, AllModelConverterMethodsUnsupported) {
          [] { return ModelConverter::convert_hf_to_safetensors("hf", "m.safetensors").error().code; }},
         {"convert_hf_to_gguf",
          [] { return ModelConverter::convert_hf_to_gguf("hf", "m.gguf").error().code; }},
-        {"load_model",
-         [] { return ModelConverter::load_model("m", ModelLoaderConfig{}).error().code; }},
     });
+}
+
+TEST(ConverterContractsTest, LoadModelRejectsNonOnnxFormats) {
+    ModelLoaderConfig config;
+    config.format = ModelFormat::CUSTOM;
+    auto custom = ModelConverter::load_model("m", config);
+    ASSERT_FALSE(custom.has_value());
+    EXPECT_EQ(custom.error().code, Error::Code::Unsupported);
+
+    config.format = ModelFormat::TFLITE;
+    auto tflite = ModelConverter::load_model("m", config);
+    ASSERT_FALSE(tflite.has_value());
+    EXPECT_EQ(tflite.error().code, Error::Code::Unsupported);
+}
+
+TEST(ConverterContractsTest, LoadModelLoadsOnnxFixture) {
+    ModelLoaderConfig config;
+    config.format = ModelFormat::ONNX;
+    auto graph = ModelConverter::load_model(
+        std::string(IE_TEST_DATA_DIR) + "/tiny_add.onnx", config);
+    ASSERT_TRUE(graph.has_value()) << graph.error().message;
+    ASSERT_EQ(graph->nodes.size(), 1u);
+    EXPECT_EQ(graph->nodes[0].op, OpType::Add);
+    ASSERT_EQ(graph->weights.count("w"), 1u);
 }
 
 TEST(ConverterContractsTest, AllFormatLoadersUnsupported) {

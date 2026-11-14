@@ -23,8 +23,8 @@ enum class GGUFQuantType {
     Q2_K
 };
 
-// Model conversion entry points (docs/readme.md §11.2). P0.5 freezes the
-// contract only; every conversion path is unsupported.
+// Model conversion entry points (docs/readme.md §11.2). Conversion paths stay
+// unsupported until P2b; load_model decodes the ONNX subset into the Graph IR.
 class ModelConverter {
 public:
     static Status convert_onnx_to_ie(const std::string& /*onnx_path*/,
@@ -49,10 +49,8 @@ public:
         return Error::unsupported("gguf conversion not implemented in P0.5");
     }
 
-    static Result<Graph> load_model(const std::string& /*path*/,
-                                    const ModelLoaderConfig& /*config*/) {
-        return Error::unsupported("model loading not implemented in P0.5");
-    }
+    static Result<Graph> load_model(const std::string& path,
+                                    const ModelLoaderConfig& config);
 };
 
 }  // namespace ie
